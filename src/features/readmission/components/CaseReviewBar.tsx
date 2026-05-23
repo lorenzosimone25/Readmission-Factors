@@ -23,8 +23,6 @@ type Props = {
   annotation: ClinicianReadmissionAnnotation;
   caseIndex: number;
   caseCount: number;
-  highlightCount: number;
-  finalizedFactorCount: number;
   dirty: boolean;
   canSubmit: boolean;
   submitBlocker: string;
@@ -173,8 +171,6 @@ export function CaseReviewBar({
   annotation,
   caseIndex,
   caseCount,
-  highlightCount,
-  finalizedFactorCount,
   dirty,
   canSubmit,
   submitBlocker,
@@ -194,42 +190,27 @@ export function CaseReviewBar({
 
   return (
     <header
-      className="flex shrink-0 flex-wrap items-center gap-3 rounded-xl border px-3 py-2"
+      className="flex shrink-0 flex-wrap items-center gap-3 rounded-xl border px-3 py-1.5"
       style={{ borderColor: 'var(--color-border-strong)', background: 'var(--color-panel-solid)' }}
     >
-      <div className="min-w-0">
-        <h1 className="text-sm font-semibold tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
-          Readmission review
-        </h1>
-        <div className="mt-0.5">
-          <SaveIndicator
-            status={saveStatus}
-            dirty={dirty}
-            lastSavedAt={lastSavedAt}
-            saveError={saveError}
-            submitted={isSubmitted}
-            onRetry={onSaveDraft}
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
-        <span className="rounded-full border px-2 py-0.5" style={{ borderColor: 'var(--color-border)' }}>
-          {activeCase.patientIdentifier}
+      <div className="flex min-w-0 flex-wrap items-center gap-2 text-[11px]" style={{ color: 'var(--color-text-secondary)' }}>
+        <span className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+          Subject {activeCase.subjectId}
         </span>
-        <span>Subject {activeCase.subjectId}</span>
         <span>
           HADM {activeCase.indexHadmId} → {activeCase.readmitHadmId}
-        </span>
-        <span>ICD {activeCase.indexPrimaryIcdCode}</span>
-        <span>{activeCase.daysToReadmission.toLocaleString()}d to readmit</span>
-        {activeCase.readmitHasIcu ? <span>ICU</span> : null}
-        <span>
-          {highlightCount} hl · {finalizedFactorCount} done
         </span>
         <span className="font-semibold" style={{ color: statusColor(annotation.status) }}>
           {statusLabel(annotation.status)}
         </span>
+        <SaveIndicator
+          status={saveStatus}
+          dirty={dirty}
+          lastSavedAt={lastSavedAt}
+          saveError={saveError}
+          submitted={isSubmitted}
+          onRetry={onSaveDraft}
+        />
       </div>
 
       <div className="ml-auto flex flex-wrap items-center gap-1.5">

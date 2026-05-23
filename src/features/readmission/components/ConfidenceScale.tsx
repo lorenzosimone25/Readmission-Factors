@@ -23,11 +23,15 @@ export function ConfidenceScale({ value, onChange }: Props) {
               aria-checked={selected}
               aria-label={opt.label}
               onClick={() => onChange(opt.value)}
-              className="min-w-[2rem] rounded-lg border px-2 py-1.5 text-xs font-semibold transition-opacity"
+              className="min-w-[2.25rem] rounded-lg border-2 px-2 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               style={{
-                borderColor: selected ? 'var(--color-accent-blue)' : 'var(--color-border)',
-                background: selected ? 'hsla(210, 75%, 55%, 0.12)' : 'var(--color-panel-alt)',
-                color: selected ? 'var(--color-accent-blue)' : 'var(--color-text-secondary)',
+                borderColor: selected ? 'var(--color-accent-blue)' : 'var(--color-border-strong)',
+                background: selected ? 'var(--color-accent-blue)' : 'var(--color-panel-solid)',
+                color: selected ? '#ffffff' : 'var(--color-text-primary)',
+                boxShadow: selected ? '0 1px 3px hsla(0, 0%, 0%, 0.15)' : 'none',
+                // @ts-expect-error -- CSS custom property for tailwind ring tokens
+                '--tw-ring-color': 'var(--color-accent-blue)',
+                '--tw-ring-offset-color': 'var(--color-panel-solid)',
               }}
             >
               {opt.value}

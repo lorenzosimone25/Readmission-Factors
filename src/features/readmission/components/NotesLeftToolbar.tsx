@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+
 import type { QueueFilter } from '@/features/readmission/lib/taskEstimate';
 
 type SortKey = 'days_asc' | 'days_desc' | 'tasks_desc';
@@ -10,6 +12,8 @@ type Props = {
   sort: SortKey;
   onSortChange: (s: SortKey) => void;
 };
+
+const SEARCH_DEBOUNCE_MS = 180;
 
 const FILTERS: { id: QueueFilter; label: string }[] = [
   { id: 'remaining', label: 'Remaining' },
@@ -27,6 +31,25 @@ export function NotesLeftToolbar({
   sort,
   onSortChange,
 }: Props) {
+  const [draftSearch, setDraftSearch] = useState(search);
+  const lastCommittedRef = useRef(search);
+
+  useEffect(() => {
+    if (search !== lastCommittedRef.current) {
+      setDraftSearch(search);
+      lastCommittedRef.current = search;
+    }
+  }, [search]);
+
+  useEffect(() => {
+    if (draftSearch === lastCommittedRef.current) return;
+    const id = window.setTimeout(() => {
+      lastCommittedRef.current = draftSearch;
+      onSearchChange(draftSearch);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [draftSearch, onSearchChange]);
+
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
       <div className="flex flex-wrap gap-1">
@@ -51,8 +74,8 @@ export function NotesLeftToolbar({
       </div>
       <input
         type="search"
-        value={search}
-        onChange={(e) => onSearchChange(e.target.value)}
+        value={draftSearch}
+        onChange={(e) => setDraftSearch(e.target.value)}
         placeholder="Search patient, subject, ICD…"
         className="min-w-[200px] flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none"
         style={{

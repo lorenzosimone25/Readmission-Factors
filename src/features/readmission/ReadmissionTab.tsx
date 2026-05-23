@@ -2,6 +2,7 @@ import { AnnotationToast } from '@/features/readmission/components/AnnotationToa
 import { CaseReviewBar } from '@/features/readmission/components/CaseReviewBar';
 import { DualNoteWorkspace } from '@/features/readmission/components/DualNoteWorkspace';
 import { FactorWorkbenchPanel } from '@/features/readmission/components/FactorWorkbenchPanel';
+import { SubmitReadinessPanel } from '@/features/readmission/components/SubmitReadinessPanel';
 import { useReadmissionAnnotation } from '@/features/readmission/hooks/useReadmissionAnnotation';
 import { useReadmissionSession } from '@/features/readmission/context/ReadmissionSessionContext';
 import type { ReadmissionCase } from '@/features/readmission/types/readmissionAnnotation';
@@ -59,8 +60,6 @@ export function ReadmissionTab({
         annotation={ws.annotation}
         caseIndex={ws.caseIndex}
         caseCount={ws.caseCount}
-        highlightCount={ws.highlightCount}
-        finalizedFactorCount={ws.finalizedFactorCount}
         dirty={ws.dirty}
         canSubmit={ws.submitValidation.ok}
         submitBlocker={submitBlocker}
@@ -74,6 +73,11 @@ export function ReadmissionTab({
         onSubmit={() => void ws.submitReview()}
         onExport={ws.exportJson}
         onBackToQueue={onBackToQueue ? handleBackToQueue : undefined}
+      />
+
+      <SubmitReadinessPanel
+        validation={ws.submitValidation}
+        submitted={ws.annotation.status === 'submitted'}
       />
 
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_340px] gap-3">
@@ -128,18 +132,6 @@ export function ReadmissionTab({
               {ws.annotation.evidenceGroups.length !== 1 ? 's' : ''} · {ws.highlightCount} highlight
               {ws.highlightCount !== 1 ? 's' : ''}
             </p>
-            {ws.submitValidation.ok ? (
-              <p
-                className="mt-2 rounded border px-2 py-1.5 text-[10px] font-medium"
-                style={{
-                  borderColor: 'hsla(145, 40%, 45%, 0.35)',
-                  color: 'hsl(145, 45%, 32%)',
-                  background: 'hsla(145, 50%, 62%, 0.12)',
-                }}
-              >
-                Ready to submit
-              </p>
-            ) : null}
           </header>
           <FactorWorkbenchPanel
             annotation={ws.annotation}
@@ -148,7 +140,6 @@ export function ReadmissionTab({
             expandedGroupId={ws.expandedGroupId}
             activeGroupId={ws.activeGroupId}
             groupCardRefs={ws.groupCardRefs}
-            submitValidation={ws.submitValidation}
             isDefaultFactorLabel={ws.isDefaultFactorLabel}
             getFactorFormDraft={ws.getFactorFormDraft}
             onSelectGroup={ws.selectGroup}

@@ -142,7 +142,7 @@ export function NotesLeftPage() {
           No cases match this filter.
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid min-h-[480px] auto-rows-min grid-cols-1 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
           {pageItems.map((item) => (
             <CaseQueueCard key={item.rowId} item={item} onReview={queue.openCase} />
           ))}

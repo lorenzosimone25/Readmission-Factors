@@ -9,10 +9,9 @@ import {
   accentForGroupColor,
   activeFactorCardBackground,
   activeFactorCardBorder,
-  activeFactorPillBackground,
+  activeFactorCardShadow,
 } from '@/features/readmission/lib/groupColors';
 import { roleLabel } from '@/features/readmission/lib/vocabLabels';
-import type { ValidationResult } from '@/features/readmission/lib/annotationValidation';
 import type {
   ClinicianReadmissionAnnotation,
   EvidenceSpan,
@@ -28,7 +27,6 @@ type Props = {
   expandedGroupId: string | null;
   activeGroupId: string | null;
   groupCardRefs: MutableRefObject<Map<string, HTMLDivElement | null>>;
-  submitValidation: ValidationResult;
   isDefaultFactorLabel: (label: string) => boolean;
   getFactorFormDraft: (groupId: string) => FactorFormDraft | undefined;
   onSelectGroup: (groupId: string) => void;
@@ -55,7 +53,6 @@ export function FactorWorkbenchPanel({
   expandedGroupId,
   activeGroupId,
   groupCardRefs,
-  submitValidation,
   isDefaultFactorLabel,
   getFactorFormDraft,
   onSelectGroup,
@@ -92,42 +89,12 @@ export function FactorWorkbenchPanel({
         </button>
         {groups.length > 0 ? (
           <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
-            Click a factor card to activate it for highlighting. Each factor has its own color.
+            Click a factor card to activate it for highlighting. Open a card to set its label and metadata.
           </p>
         ) : null}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3">
-        {submitValidation.ok ? (
-          <p
-            className="shrink-0 rounded-lg border px-2 py-2 text-xs font-medium"
-            style={{
-              borderColor: 'hsla(145, 40%, 45%, 0.35)',
-              color: 'hsl(145, 45%, 32%)',
-              background: 'hsla(145, 50%, 62%, 0.12)',
-            }}
-          >
-            Ready to submit — primary factor complete.
-          </p>
-        ) : submitValidation.errors.length > 0 ? (
-          <div
-            className="shrink-0 rounded-lg border px-2 py-2 text-xs"
-            style={{
-              borderColor: 'var(--color-accent-danger)',
-              color: 'var(--color-accent-danger)',
-              background: 'hsla(0, 70%, 50%, 0.08)',
-            }}
-            role="alert"
-          >
-            <p className="font-medium">Not ready to submit</p>
-            <ul className="mt-1 list-inside list-disc text-[11px]">
-              {submitValidation.errors.slice(0, 4).map((err) => (
-                <li key={err}>{err}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
         {groups.length === 0 ? (
           <p
             className="rounded-lg border px-3 py-6 text-center text-xs"
@@ -157,13 +124,16 @@ export function FactorWorkbenchPanel({
                 if (el) groupCardRefs.current.set(group.id, el);
                 else groupCardRefs.current.delete(group.id);
               }}
-              className="rounded-lg border transition-shadow"
+              className="rounded-lg border-2 transition-[box-shadow,background-color,border-color] hover:bg-[var(--color-panel-alt)]"
               aria-selected={isActive}
               style={{
-                borderColor: isActive ? activeFactorCardBorder(group.color) : 'var(--color-border)',
+                borderColor: isActive
+                  ? activeFactorCardBorder(group.color)
+                  : 'var(--color-border-strong)',
                 background: isActive
                   ? activeFactorCardBackground(group.color)
                   : 'var(--color-panel-solid)',
+                boxShadow: isActive ? activeFactorCardShadow(group.color) : 'none',
               }}
               onClick={(e) => {
                 if (isInteractiveTarget(e.target)) return;
@@ -192,58 +162,47 @@ export function FactorWorkbenchPanel({
                   style={{ background: accentForGroupColor(group.color) }}
                   aria-hidden
                 />
-                <input
-                  className="min-w-0 flex-1 rounded border bg-transparent px-1 py-0.5 text-sm font-medium outline-none"
+                <span
+                  className="min-w-0 flex-1 truncate text-sm font-medium"
                   style={{
-                    borderColor: defaultLabel
+                    color: defaultLabel
                       ? 'var(--color-accent-danger)'
-                      : 'var(--color-border)',
-                    color: 'var(--color-text-primary)',
+                      : 'var(--color-text-primary)',
                   }}
-                  value={group.label}
-                  onChange={(e) => onRenameGroup(group.id, e.target.value)}
-                  onFocus={() => onSelectGroup(group.id)}
-                  onClick={(e) => e.stopPropagation()}
-                  placeholder="e.g. Recurrent ischemia"
-                  aria-label="Factor label"
-                  data-no-card-select
-                />
-                {isActive ? (
-                  <span
-                    className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
-                    style={{
-                      background: activeFactorPillBackground(group.color),
-                      color: accentForGroupColor(group.color),
-                      border: `1px solid ${activeFactorCardBorder(group.color)}`,
-                    }}
-                  >
-                    Active
-                  </span>
-                ) : null}
+                  title={group.label}
+                >
+                  {group.label || 'Unnamed factor'}
+                </span>
                 {completionStatus === 'complete' ? (
                   <span
-                    className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                    className="shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold"
                     style={{
-                      background: 'hsla(145, 50%, 62%, 0.2)',
-                      color: 'hsl(145, 45%, 35%)',
+                      background: 'hsla(145, 55%, 55%, 0.22)',
+                      color: 'hsl(145, 45%, 28%)',
+                      borderColor: 'hsla(145, 45%, 40%, 0.45)',
                     }}
                   >
                     Complete
                   </span>
                 ) : completionStatus === 'in_progress' ? (
                   <span
-                    className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                    className="shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold"
                     style={{
-                      background: 'hsla(0, 70%, 50%, 0.12)',
+                      background: 'hsla(0, 70%, 50%, 0.14)',
                       color: 'var(--color-accent-danger)',
+                      borderColor: 'hsla(0, 70%, 50%, 0.45)',
                     }}
                   >
                     Incomplete
                   </span>
                 ) : (
                   <span
-                    className="shrink-0 text-[10px] font-medium"
-                    style={{ color: 'var(--color-text-tertiary)' }}
+                    className="shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold"
+                    style={{
+                      background: 'var(--color-panel-alt)',
+                      color: 'var(--color-text-secondary)',
+                      borderColor: 'var(--color-border-strong)',
+                    }}
                   >
                     Needs highlights
                   </span>
@@ -260,18 +219,6 @@ export function FactorWorkbenchPanel({
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
-
-              {defaultLabel && !isExpanded ? (
-                <p
-                  className="border-t px-3 py-1.5 text-[10px]"
-                  style={{
-                    borderColor: 'var(--color-border)',
-                    color: 'var(--color-accent-danger)',
-                  }}
-                >
-                  Rename this factor before completing.
-                </p>
-              ) : null}
 
               {!isExpanded && previewText ? (
                 <p
@@ -329,6 +276,7 @@ export function FactorWorkbenchPanel({
                       onDraftChange={(d) => onUpdateFactorFormDraft(group.id, d)}
                       onFinalize={(patch) => onSaveFactor(group.id, patch)}
                       onGroupNoteChange={(note) => onUpdateGroupNote(group.id, note)}
+                      onLabelChange={(label) => onRenameGroup(group.id, label)}
                       onJumpToSpan={onJumpToSpan}
                       onRemoveHighlight={onRemoveHighlight}
                       compact

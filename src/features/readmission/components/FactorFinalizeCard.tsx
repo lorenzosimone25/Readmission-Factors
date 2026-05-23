@@ -30,6 +30,7 @@ type Props = {
   onJumpToSpan: (spanId: string) => void;
   onRemoveHighlight: (spanId: string) => void;
   onGroupNoteChange?: (note: string) => void;
+  onLabelChange?: (label: string) => void;
   compact?: boolean;
 };
 
@@ -61,6 +62,7 @@ export function FactorFinalizeCard({
   onJumpToSpan,
   onRemoveHighlight,
   onGroupNoteChange,
+  onLabelChange,
   compact = false,
 }: Props) {
   const isEditing = Boolean(existingFactor);
@@ -104,7 +106,7 @@ export function FactorFinalizeCard({
 
   const handleSave = () => {
     if (labelIsDefault || !group.label.trim()) {
-      setFieldErrors(['Rename this factor in the card header before saving.']);
+      setFieldErrors(['Give this factor a clinical label before saving.']);
       return;
     }
     const patch = buildPatch();
@@ -139,12 +141,41 @@ export function FactorFinalizeCard({
       className={compact ? 'space-y-2' : 'mt-3 space-y-2 border-t pt-3'}
       style={compact ? undefined : { borderColor: 'var(--color-border)' }}
     >
-      {labelIsDefault ? (
-        <p className="text-[10px]" style={{ color: 'var(--color-accent-danger)' }}>
-          Rename this factor in the card header — avoid leaving the default &ldquo;Factor N&rdquo;
-          label.
-        </p>
-      ) : null}
+      <label className="block">
+        <span
+          className="block text-[10px] font-medium uppercase tracking-wide"
+          style={{ color: 'var(--color-text-tertiary)' }}
+        >
+          Label <span style={{ color: 'var(--color-accent-danger)' }}>*</span>
+        </span>
+        <input
+          className={inputClass}
+          style={{
+            borderColor: labelIsDefault
+              ? 'var(--color-accent-danger)'
+              : 'var(--color-border)',
+            background: 'var(--color-panel-alt)',
+            color: 'var(--color-text-primary)',
+          }}
+          value={group.label}
+          onChange={(e) => {
+            onLabelChange?.(e.target.value);
+            if (fieldErrors.length > 0) setFieldErrors([]);
+          }}
+          placeholder="e.g. Recurrent ischemia"
+          aria-label="Factor label"
+          aria-invalid={labelIsDefault || !group.label.trim() ? true : undefined}
+          required
+        />
+        {labelIsDefault ? (
+          <span
+            className="mt-0.5 block text-[10px]"
+            style={{ color: 'var(--color-accent-danger)' }}
+          >
+            Give this factor a clinical label before saving.
+          </span>
+        ) : null}
+      </label>
 
       <div>
         <p
@@ -160,6 +191,10 @@ export function FactorFinalizeCard({
         >
           {ROLE_OPTIONS.map((opt) => {
             const selected = role === opt.value;
+            const palette =
+              opt.value === 'primary'
+                ? { bg: 'var(--color-accent-blue)', border: 'var(--color-accent-blue)' }
+                : { bg: 'hsl(35, 90%, 48%)', border: 'hsl(35, 90%, 42%)' };
             return (
               <button
                 key={opt.value}
@@ -170,16 +205,28 @@ export function FactorFinalizeCard({
                   setRole(opt.value);
                   setFieldErrors([]);
                 }}
-                className="rounded-lg border px-2.5 py-2 text-left"
+                className="rounded-lg border-2 px-2.5 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
                 style={{
-                  borderColor: selected ? accentForGroupColor(group.color) : 'var(--color-border)',
-                  background: selected ? 'var(--color-panel-alt)' : 'var(--color-panel-solid)',
+                  borderColor: selected ? palette.border : 'var(--color-border-strong)',
+                  background: selected ? palette.bg : 'var(--color-panel-solid)',
+                  boxShadow: selected ? '0 1px 3px hsla(0, 0%, 0%, 0.15)' : 'none',
+                  // @ts-expect-error -- CSS custom property for tailwind ring color
+                  '--tw-ring-color': palette.border,
+                  '--tw-ring-offset-color': 'var(--color-panel-solid)',
                 }}
               >
-                <span className="block text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                <span
+                  className="block text-xs font-semibold"
+                  style={{ color: selected ? '#ffffff' : 'var(--color-text-primary)' }}
+                >
                   {opt.label}
                 </span>
-                <span className="mt-0.5 block text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
+                <span
+                  className="mt-0.5 block text-[10px]"
+                  style={{
+                    color: selected ? 'hsla(0, 0%, 100%, 0.88)' : 'var(--color-text-tertiary)',
+                  }}
+                >
                   {opt.description}
                 </span>
               </button>

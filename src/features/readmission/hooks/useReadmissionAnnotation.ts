@@ -135,7 +135,6 @@ export function useReadmissionAnnotation({
   const pendingScrollTopRef = useRef<number | null>(null);
   const pendingScrollNoteTypeRef = useRef<ClinicalNoteType | null>(null);
   const groupCardRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
-  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const registerSession = useRegisterReadmissionSession();
   const session = useReadmissionSession();
   const requestLeave = session?.requestLeave ?? ((proceed: () => void) => proceed());
@@ -355,21 +354,6 @@ export function useReadmissionAnnotation({
     submitting,
   ]);
 
-  useEffect(() => {
-    if (!dirty || !annotation) return;
-    if (annotation.status === 'submitted') return;
-    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-    autosaveTimerRef.current = setTimeout(() => {
-      void persistDraft().catch((err) => {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        showToast('Auto-save failed', 'error', [message]);
-      });
-    }, 1000);
-    return () => {
-      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-    };
-  }, [annotation, dirty, persistDraft, showToast]);
-
   const markDirty = useCallback(() => setDirty(true), []);
 
   const updateAnnotation = useCallback(
@@ -446,7 +430,7 @@ export function useReadmissionAnnotation({
       });
       setActiveGroupId(addedGroupId);
       setExpandedGroupId(addedGroupId);
-      showToast(`"${resolvedLabel}" added — rename it, then highlight in either note.`, 'success');
+      showToast(`"${resolvedLabel}" added — set its Label, then highlight in either note.`, 'success');
       requestAnimationFrame(() => {
         if (addedGroupId) {
           groupCardRefs.current.get(addedGroupId)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -674,10 +658,6 @@ export function useReadmissionAnnotation({
     if (!activeCase || !annotation || submitting) return;
 
     setSubmitting(true);
-    if (autosaveTimerRef.current) {
-      clearTimeout(autosaveTimerRef.current);
-      autosaveTimerRef.current = null;
-    }
 
     try {
       if (dirty) {
