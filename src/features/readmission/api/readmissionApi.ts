@@ -1,75 +1,13 @@
-import {
-  loadDraftFromStorage,
-  saveDraftToStorage,
-} from '@/features/readmission/lib/annotationStorage';
-import { loadCaseByRowId, loadCaseIndex } from '@/features/readmission/data/readmissionDataset';
-import { buildQueueItem, DEFAULT_REVIEWER_ID, type CaseQueueItem } from '@/features/readmission/lib/taskEstimate';
-import { MOCK_READMISSION_CASES } from '@/features/readmission/mock/readmissionCases';
-import type {
-  ClinicianReadmissionAnnotation,
-  ReadmissionCase,
-  ReadmissionCaseMetadata,
-} from '@/features/readmission/types/readmissionAnnotation';
+import { hasReadmissionBackend } from '@/features/readmission/api/readmissionApiMode';
+import { readmissionApiBackend } from '@/features/readmission/api/readmissionApiBackend';
+import { readmissionApiLocal } from '@/features/readmission/api/readmissionApiLocal';
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK_CASES === 'true';
+export type { ReadmissionApi } from '@/features/readmission/api/readmissionApiTypes';
+export { hasReadmissionBackend } from '@/features/readmission/api/readmissionApiMode';
 
-export type ReadmissionApi = {
-  listCaseSummaries(): Promise<CaseQueueItem[]>;
-  loadCase(rowId: string): Promise<ReadmissionCase | null>;
-  loadAnnotation(caseId: string, reviewerId: string, noteVersionHash: string): Promise<ClinicianReadmissionAnnotation | null>;
-  saveAnnotation(annotation: ClinicianReadmissionAnnotation): Promise<void>;
-  submitAnnotation(annotation: ClinicianReadmissionAnnotation): Promise<ClinicianReadmissionAnnotation>;
-};
+export const readmissionApi = hasReadmissionBackend()
+  ? readmissionApiBackend
+  : readmissionApiLocal;
 
-async function mockSummaries(): Promise<CaseQueueItem[]> {
-  return MOCK_READMISSION_CASES.map((c) => buildQueueItem(toMetadata(c)));
-}
-
-function toMetadata(c: ReadmissionCase): ReadmissionCaseMetadata {
-  return {
-    rowId: c.rowId,
-    patientIdentifier: c.patientIdentifier,
-    subjectId: c.subjectId,
-    indexHadmId: c.indexHadmId,
-    readmitHadmId: c.readmitHadmId,
-    indexPrimaryIcdCode: c.indexPrimaryIcdCode,
-    daysToReadmission: c.daysToReadmission,
-    readmitHasIcu: c.readmitHasIcu,
-  };
-}
-
-export const readmissionApi: ReadmissionApi = {
-  async listCaseSummaries() {
-    if (USE_MOCK) return mockSummaries();
-
-    const index = await loadCaseIndex();
-    return index.map((meta) => buildQueueItem(meta));
-  },
-
-  async loadCase(rowId) {
-    if (USE_MOCK) {
-      return MOCK_READMISSION_CASES.find((c) => c.rowId === rowId || c.caseId === rowId) ?? null;
-    }
-    return loadCaseByRowId(rowId);
-  },
-
-  async loadAnnotation(caseId, reviewerId, noteVersionHash) {
-    return loadDraftFromStorage(caseId, reviewerId, noteVersionHash);
-  },
-
-  async saveAnnotation(annotation) {
-    saveDraftToStorage(annotation);
-  },
-
-  async submitAnnotation(annotation) {
-    const next: ClinicianReadmissionAnnotation = {
-      ...annotation,
-      status: 'submitted',
-      updatedAt: new Date().toISOString(),
-    };
-    saveDraftToStorage(next);
-    return next;
-  },
-};
-
-export { DEFAULT_REVIEWER_ID };
+/** @deprecated Use auth user id when backend is enabled. */
+export const DEFAULT_REVIEWER_ID = 'clinician-demo-01';

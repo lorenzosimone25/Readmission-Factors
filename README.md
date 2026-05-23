@@ -98,19 +98,54 @@ http://localhost:5173
 
 ---
 
-## ☁️ Deploy on Render (Static Site)
+## 🗄️ Backend (FastAPI + Postgres)
 
-Use a **Static Site** (not a Web Service). The cohort Parquet file is not in Git, so production builds use demo fixtures unless you add the file another way.
+Local API for assigned cases, auth, and persisted annotations.
 
-| Setting | Value |
-| :--- | :--- |
-| **Build Command** | `npm install && npm run build` |
-| **Publish Directory** | `dist` |
-| **Environment** | `VITE_USE_MOCK_CASES=true` |
+```bash
+docker compose up -d
+cp backend/.env.example backend/.env
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
 
-`render.yaml` in the repo encodes these defaults. After connecting the GitHub repo, trigger a new deploy.
+Import cohort (from repo root, with parquet on disk):
 
-For real cohort data in production, serve cases from a private API (recommended) rather than bundling Parquet in the static site.
+```bash
+python backend/scripts/import_parquet.py --path src/data/readmit_30d.parquet
+```
+
+Assign all cases to the demo reviewer (admin token required after login):
+
+```bash
+curl -X POST http://127.0.0.1:8000/admin/assign-all-to-reviewer \
+  -H "Authorization: Bearer <admin-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"user_email":"reviewer@example.com"}'
+```
+
+**Bootstrap users:** `admin@example.com` / `changeme-admin` · `reviewer@example.com` / `changeme-reviewer`
+
+**Frontend with API** (`.env.local`):
+
+```text
+VITE_API_BASE_URL=/api
+```
+
+Do **not** set `VITE_USE_MOCK_CASES` when using the API. Vite proxies `/api` → `http://127.0.0.1:8000`.
+
+---
+
+## ☁️ Deploy on Render
+
+Use the root `render.yaml` blueprint: **Postgres** + **Python Web Service** (`readmission-api`) + **Static Site** (`readmission-factors`).
+
+1. Set `BOOTSTRAP_ADMIN_PASSWORD` and `CORS_ORIGINS` (your static site URL) on the API service.
+2. Set `VITE_API_BASE_URL` on the static site to the API’s `https://…onrender.com` URL (no trailing slash).
+3. After deploy: import parquet against the production DB (run script locally with `DATABASE_URL`), then assign cases via `/admin` endpoints.
+
+**Static-only demo** (no API): set `VITE_USE_MOCK_CASES=true` on the static site build.
 
 ---
 

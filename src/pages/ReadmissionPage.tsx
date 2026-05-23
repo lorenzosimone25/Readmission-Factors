@@ -94,6 +94,7 @@ export function ReadmissionPage() {
         activeCase={activeCase}
         queueRowIds={queue.queueRowIds}
         onNavigateCase={navigateCase}
+        onQueueRefresh={queue.refresh}
       />
     </ReadmissionErrorBoundary>
   );

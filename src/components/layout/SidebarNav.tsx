@@ -1,6 +1,9 @@
-import { HeartPulse, LayoutDashboard, Sparkles, History } from 'lucide-react';
+import { HeartPulse, History, LayoutDashboard, LogOut, Sparkles } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+
 import { BRANDING } from '@/config/branding';
+import { useAuth } from '@/context/AuthContext';
+import { hasReadmissionBackend } from '@/features/readmission/api/readmissionApi';
 
 const PRIMARY = [
   { to: '/', label: 'Notes Left', icon: LayoutDashboard, end: true },
@@ -12,6 +15,9 @@ const SECONDARY = [
 ] as const;
 
 export function SidebarNav() {
+  const auth = useAuth();
+  const showAuth = hasReadmissionBackend() && auth.user;
+
   return (
     <aside
       className="flex w-[220px] shrink-0 flex-col"
@@ -99,6 +105,23 @@ export function SidebarNav() {
             })}
           </nav>
         </div>
+
+        {showAuth ? (
+          <div className="mt-auto border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
+            <p className="mb-2 truncate text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+              {auth.user?.displayName || auth.user?.email}
+            </p>
+            <button
+              type="button"
+              onClick={() => auth.logout()}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm"
+              style={{ color: 'var(--color-text-tertiary)' }}
+            >
+              <LogOut className="h-4 w-4" aria-hidden />
+              Sign out
+            </button>
+          </div>
+        ) : null}
       </div>
     </aside>
   );

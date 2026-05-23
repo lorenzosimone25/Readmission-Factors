@@ -1,0 +1,71 @@
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic.alias_generators import to_camel
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserPublic(CamelModel):
+    id: UUID
+    email: EmailStr
+    display_name: str
+    role: str
+
+    model_config = ConfigDict(from_attributes=True, alias_generator=to_camel, populate_by_name=True)
+
+
+class CamelModel(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+
+class CaseMetadataOut(CamelModel):
+    row_id: str
+    patient_identifier: str
+    subject_id: str
+    index_hadm_id: str
+    readmit_hadm_id: str
+    index_primary_icd_code: str
+    days_to_readmit: int = Field(serialization_alias="daysToReadmission")
+    readmit_has_icu: bool | None = Field(default=None, serialization_alias="readmitHasIcu")
+
+
+class QueueItemOut(CaseMetadataOut):
+    annotation_status: str = Field(serialization_alias="annotationStatus")
+    estimated_tasks: int = Field(serialization_alias="estimatedTasks")
+
+
+class ReadmissionCaseOut(CaseMetadataOut):
+    case_id: str = Field(serialization_alias="caseId")
+    reviewer_id: str = Field(serialization_alias="reviewerId")
+    index_raw_note: str = Field(serialization_alias="indexRawNote")
+    readmission_raw_note: str = Field(serialization_alias="readmissionRawNote")
+    note_version_hash: str = Field(serialization_alias="noteVersionHash")
+    note_versions: dict[str, str] = Field(serialization_alias="noteVersions")
+
+
+class AnnotationOut(BaseModel):
+    annotation: dict
+
+
+class AssignmentCreate(BaseModel):
+    user_email: EmailStr
+    row_ids: list[str] = Field(min_length=1)
+
+
+class ImportResult(BaseModel):
+    cases_upserted: int
+    message: str
+
+
+class HealthOut(BaseModel):
+    status: str
+    database: str

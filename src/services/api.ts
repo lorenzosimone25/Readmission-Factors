@@ -1,3 +1,5 @@
+import { getAuthToken } from '@/services/authStorage';
+
 /**
  * Live API: in dev, defaults to `/api` (Vite proxy → http://127.0.0.1:8765). Override with
  * `VITE_API_BASE_URL` (e.g. full URL for non-proxy setups). Set `VITE_USE_MOCK=true` for fixtures only.
@@ -26,6 +28,12 @@ export function hasLiveApi(): boolean {
   return Boolean(getApiBase()) && !useMockDemo();
 }
 
+export function authHeaders(): Record<string, string> {
+  const token = getAuthToken();
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
+}
+
 export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const base = getApiBase();
   if (!base) {
@@ -34,7 +42,30 @@ export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T>
   const url = path.startsWith('http')
     ? path
     : `${base}${path.startsWith('/') ? '' : '/'}${path}`;
-  const res = await fetch(url, init);
+  const headers = new Headers(init?.headers);
+  const auth = authHeaders();
+  for (const [k, v] of Object.entries(auth)) {
+    headers.set(k, v);
+  }
+  const res = await fetch(url, { ...init, headers });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`${res.status} ${res.statusText}: ${text.slice(0, 200)}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export async function putJson<T>(path: string, body: unknown): Promise<T> {
+  const base = getApiBase();
+  if (!base) {
+    throw new Error('putJson requires VITE_API_BASE_URL');
+  }
+  const url = `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body),
+  });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`${res.status} ${res.statusText}: ${text.slice(0, 200)}`);
@@ -50,7 +81,7 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
   const url = `${base}${path.startsWith('/') ? '' : '/'}${path}`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(body),
   });
   if (!res.ok) {

@@ -40,3 +40,9 @@ test.ipynb
 
 # Cursor / agent artifacts
 .cursor/
+
+# Python backend
+__pycache__/
+*.py[cod]
+.venv/
+backend/.env

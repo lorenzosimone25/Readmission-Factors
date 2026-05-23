@@ -9,13 +9,15 @@ type Props = {
   activeCase: ReadmissionCase;
   queueRowIds: string[];
   onNavigateCase: (rowId: string) => void;
+  onQueueRefresh?: () => void;
 };
 
-export function ReadmissionTab({ activeCase, queueRowIds, onNavigateCase }: Props) {
+export function ReadmissionTab({ activeCase, queueRowIds, onNavigateCase, onQueueRefresh }: Props) {
   const ws = useReadmissionAnnotation({
     activeCase,
     queueRowIds,
     onNavigateCase,
+    onQueueRefresh,
   });
 
   if (ws.loading || !ws.annotation || !ws.indexNote || !ws.readmissionNote) {
