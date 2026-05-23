@@ -1,0 +1,42 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+dist-ssr
+
+# Local env
+.env
+.env.*
+!.env.example
+
+# Clinical dataset (not versioned — place locally in src/data/)
+*.parquet
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor & OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Thumbs.db
+
+# Scratch / local notebooks
+*.ipynb
+test.ipynb
+
+# Cursor / agent artifacts
+.cursor/
