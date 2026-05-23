@@ -14,6 +14,10 @@ import {
 } from '@/features/readmission/lib/annotationReducer';
 import { readmissionApi } from '@/features/readmission/api/readmissionApi';
 import { hasReadmissionBackend } from '@/features/readmission/api/readmissionApiMode';
+import {
+  useReadmissionSession,
+  useRegisterReadmissionSession,
+} from '@/features/readmission/context/ReadmissionSessionContext';
 import { normalizeAnnotation } from '@/features/readmission/lib/annotationStorage';
 import {
   validateFactorPatch,
@@ -90,11 +94,14 @@ function snapshot(annotation: ClinicianReadmissionAnnotation): string {
   return JSON.stringify(annotation);
 }
 
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 type HookOptions = {
   activeCase: ReadmissionCase | null;
   queueRowIds: string[];
   onNavigateCase: (rowId: string) => void;
   onQueueRefresh?: () => void;
+  onSubmitSuccess?: () => void;
 };
 
 function spansForNote(spans: EvidenceSpan[], noteType: ClinicalNoteType): EvidenceSpan[] {
@@ -106,6 +113,7 @@ export function useReadmissionAnnotation({
   queueRowIds,
   onNavigateCase,
   onQueueRefresh,
+  onSubmitSuccess,
 }: HookOptions) {
   const [annotation, setAnnotation] = useState<ClinicianReadmissionAnnotation | null>(null);
   const [annotationLoading, setAnnotationLoading] = useState(false);
@@ -114,9 +122,13 @@ export function useReadmissionAnnotation({
   const [pendingSelection, setPendingSelection] = useState<PendingSelection>(null);
   const pendingSelectionRef = useRef<PendingSelection>(null);
   const [dirty, setDirty] = useState(false);
-  const [, setLastSavedSnapshot] = useState<string | null>(null);
+  const lastSavedSnapshotRef = useRef<string | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [factorFormDrafts, setFactorFormDrafts] = useState<Record<string, FactorFormDraft>>({});
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const indexScrollRef = useRef<HTMLDivElement | null>(null);
   const readmissionScrollRef = useRef<HTMLDivElement | null>(null);
@@ -124,6 +136,9 @@ export function useReadmissionAnnotation({
   const pendingScrollNoteTypeRef = useRef<ClinicalNoteType | null>(null);
   const groupCardRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const registerSession = useRegisterReadmissionSession();
+  const session = useReadmissionSession();
+  const requestLeave = session?.requestLeave ?? ((proceed: () => void) => proceed());
 
   const setPendingSelectionSafe = useCallback((next: PendingSelection) => {
     pendingSelectionRef.current = next;
@@ -159,9 +174,13 @@ export function useReadmissionAnnotation({
       setExpandedGroupId(firstGroupId);
       clearPendingSelection();
       setDirty(false);
-      setLastSavedSnapshot(snapshot(ann));
+      lastSavedSnapshotRef.current = snapshot(ann);
       setFactorFormDrafts({});
       setToast(null);
+      setSaveStatus('idle');
+      setLastSavedAt(null);
+      setSaveError(null);
+      setSubmitting(false);
       setAnnotationLoading(false);
     });
     return () => {
@@ -268,18 +287,88 @@ export function useReadmissionAnnotation({
     pendingScrollNoteTypeRef.current = null;
   }, [annotation?.evidenceSpans, indexSegments, readmissionSegments]);
 
+  const buildDraftPayload = useCallback((): ClinicianReadmissionAnnotation | null => {
+    if (!activeCase || !annotation) return null;
+    if (annotation.status === 'submitted') return null;
+    const hasEdits =
+      annotation.evidenceSpans.length > 0 ||
+      annotation.status !== 'not_started' ||
+      annotation.factors.length > 0;
+    return {
+      ...annotation,
+      status: hasEdits ? ('draft' as const) : annotation.status,
+      updatedAt: new Date().toISOString(),
+      noteVersions: activeCase.noteVersions,
+      caseMetadata: caseMetadataFromCase(activeCase),
+    };
+  }, [activeCase, annotation]);
+
+  const persistDraft = useCallback(async (): Promise<void> => {
+    const next = buildDraftPayload();
+    if (!next) return;
+    setSaveStatus('saving');
+    setSaveError(null);
+    try {
+      await readmissionApi.saveAnnotation(next);
+      setAnnotation(next);
+      lastSavedSnapshotRef.current = snapshot(next);
+      setDirty(false);
+      setSaveStatus('saved');
+      setLastSavedAt(new Date().toISOString());
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setSaveStatus('error');
+      setSaveError(message);
+      throw err;
+    }
+  }, [buildDraftPayload]);
+
+  const discardChanges = useCallback(() => {
+    if (lastSavedSnapshotRef.current) {
+      setAnnotation(JSON.parse(lastSavedSnapshotRef.current) as ClinicianReadmissionAnnotation);
+    }
+    setDirty(false);
+  }, []);
+
+  useEffect(() => {
+    if (!activeCase || !annotation || annotationLoading) {
+      registerSession(null);
+      return;
+    }
+    const guardDisabled = annotation.status === 'submitted' || submitting;
+    registerSession({
+      dirty,
+      hasActiveCase: true,
+      guardDisabled,
+      persistDraft,
+      discardChanges,
+    });
+    return () => registerSession(null);
+  }, [
+    activeCase,
+    annotation,
+    annotationLoading,
+    dirty,
+    discardChanges,
+    persistDraft,
+    registerSession,
+    submitting,
+  ]);
+
   useEffect(() => {
     if (!dirty || !annotation) return;
+    if (annotation.status === 'submitted') return;
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     autosaveTimerRef.current = setTimeout(() => {
-      void readmissionApi.saveAnnotation(annotation).catch(() => {
-        // ignore autosave errors; explicit save surfaces them
+      void persistDraft().catch((err) => {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        showToast('Auto-save failed', 'error', [message]);
       });
     }, 1000);
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
-  }, [annotation, dirty]);
+  }, [annotation, dirty, persistDraft, showToast]);
 
   const markDirty = useCallback(() => setDirty(true), []);
 
@@ -296,17 +385,17 @@ export function useReadmissionAnnotation({
 
   const goPrevCase = useCallback(() => {
     if (!activeCase || caseIndex <= 0) return;
-    if (dirty && !window.confirm('You have unsaved changes. Switch case anyway?')) return;
     const prevId = queueRowIds[caseIndex - 1];
-    if (prevId) onNavigateCase(prevId);
-  }, [activeCase, caseIndex, dirty, onNavigateCase, queueRowIds]);
+    if (!prevId) return;
+    requestLeave(() => onNavigateCase(prevId));
+  }, [activeCase, caseIndex, onNavigateCase, queueRowIds, requestLeave]);
 
   const goNextCase = useCallback(() => {
     if (!activeCase || caseIndex < 0 || caseIndex >= queueRowIds.length - 1) return;
-    if (dirty && !window.confirm('You have unsaved changes. Switch case anyway?')) return;
     const nextId = queueRowIds[caseIndex + 1];
-    if (nextId) onNavigateCase(nextId);
-  }, [activeCase, caseIndex, dirty, onNavigateCase, queueRowIds]);
+    if (!nextId) return;
+    requestLeave(() => onNavigateCase(nextId));
+  }, [activeCase, caseIndex, onNavigateCase, queueRowIds, requestLeave]);
 
   const selectGroup = useCallback((groupId: string) => {
     setActiveGroupId(groupId);
@@ -568,76 +657,88 @@ export function useReadmissionAnnotation({
   );
 
   const saveDraft = useCallback(() => {
-    if (!activeCase || !annotation || !caseNotes) return;
-    const result = validateForSubmit(annotation, caseNotes);
-    if (!result.ok) {
-      showToast('Fix validation errors before saving.', 'error', result.errors);
-      return;
-    }
-    if (result.warnings.length > 0) {
-      showToast('Draft saved with warnings.', 'warning', result.warnings);
-    }
-    const next: ClinicianReadmissionAnnotation = {
-      ...annotation,
-      status: 'draft' as const,
-      updatedAt: new Date().toISOString(),
-      noteVersions: activeCase.noteVersions,
-      caseMetadata: caseMetadataFromCase(activeCase),
-    };
-    void readmissionApi
-      .saveAnnotation(next)
+    if (!activeCase || !annotation) return;
+    void persistDraft()
       .then(() => {
-        setAnnotation(next);
-        setLastSavedSnapshot(snapshot(next));
-        setDirty(false);
-        if (result.warnings.length === 0) {
-          showToast(
-            hasReadmissionBackend() ? 'Draft saved.' : 'Draft saved locally.',
-            'success',
-          );
-        }
+        showToast(
+          hasReadmissionBackend() ? 'Draft saved.' : 'Draft saved locally.',
+          'success',
+        );
       })
       .catch((e) => {
         showToast('Failed to save draft.', 'error', [e instanceof Error ? e.message : 'Unknown error']);
       });
-  }, [activeCase, annotation, caseNotes, showToast]);
+  }, [activeCase, annotation, persistDraft, showToast]);
 
-  const submitReview = useCallback(() => {
-    if (!activeCase || !annotation) return;
-    if (dirty) {
-      showToast('Save draft first — you have unsaved changes.', 'warning');
-      return;
+  const submitReview = useCallback(async () => {
+    if (!activeCase || !annotation || submitting) return;
+
+    setSubmitting(true);
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
     }
-    const result = submitValidation;
-    if (!result.ok) {
-      showToast('Fix validation errors before submitting.', 'error', result.errors);
-      return;
-    }
-    if (result.warnings.length > 0) {
-      showToast('Submitted with warnings.', 'warning', result.warnings);
-    }
-    const next: ClinicianReadmissionAnnotation = {
-      ...annotation,
-      status: 'submitted' as const,
-      updatedAt: new Date().toISOString(),
-      noteVersions: activeCase.noteVersions,
-      caseMetadata: caseMetadataFromCase(activeCase),
-    };
-    void readmissionApi
-      .submitAnnotation(next)
-      .then((saved) => {
+
+    try {
+      if (dirty) {
+        try {
+          await persistDraft();
+        } catch (e) {
+          showToast('Failed to save draft before submit.', 'error', [
+            e instanceof Error ? e.message : 'Unknown error',
+          ]);
+          return;
+        }
+      }
+
+      const result = submitValidation;
+      if (!result.ok) {
+        showToast('Fix validation errors before submitting.', 'error', result.errors);
+        return;
+      }
+
+      const next: ClinicianReadmissionAnnotation = {
+        ...annotation,
+        status: 'submitted' as const,
+        updatedAt: new Date().toISOString(),
+        noteVersions: activeCase.noteVersions,
+        caseMetadata: caseMetadataFromCase(activeCase),
+      };
+
+      try {
+        const saved = await readmissionApi.submitAnnotation(next);
         setAnnotation(saved);
-        setLastSavedSnapshot(snapshot(saved));
+        lastSavedSnapshotRef.current = snapshot(saved);
         setDirty(false);
+        setSaveStatus('saved');
+        setLastSavedAt(new Date().toISOString());
+        setSaveError(null);
         onQueueRefresh?.();
-        if (result.warnings.length === 0) {
+        if (result.warnings.length > 0) {
+          showToast('Submitted with warnings.', 'warning', result.warnings);
+        } else {
           showToast('Review submitted.', 'success');
         }
-      })
-      .catch((e) => {
-        showToast('Failed to submit.', 'error', [e instanceof Error ? e.message : 'Unknown error']);
-      });
-  }, [activeCase, annotation, dirty, onQueueRefresh, showToast, submitValidation]);
+        onSubmitSuccess?.();
+      } catch (e) {
+        showToast('Failed to submit.', 'error', [
+          e instanceof Error ? e.message : 'Unknown error',
+        ]);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }, [
+    activeCase,
+    annotation,
+    dirty,
+    onQueueRefresh,
+    onSubmitSuccess,
+    persistDraft,
+    showToast,
+    submitting,
+    submitValidation,
+  ]);
 
   const exportJson = useCallback(() => {
     if (!annotation || !activeCase) return;
@@ -670,6 +771,10 @@ export function useReadmissionAnnotation({
       setPendingSelectionSafe,
       clearPendingSelection,
       dirty,
+      saveStatus,
+      lastSavedAt,
+      saveError,
+      submitting,
       toast,
       dismissToast,
       groupById: new Map(),
@@ -735,6 +840,10 @@ export function useReadmissionAnnotation({
     setPendingSelectionSafe,
     clearPendingSelection,
     dirty,
+    saveStatus,
+    lastSavedAt,
+    saveError,
+    submitting,
     toast,
     dismissToast,
     groupById,

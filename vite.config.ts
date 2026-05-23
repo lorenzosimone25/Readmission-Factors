@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const parquetFile = path.resolve(__dirname, 'src/data/readmit_30d.parquet');
@@ -16,23 +16,27 @@ const datasetImpl = useMockData
   ? datasetImplFile
   : path.resolve(__dirname, 'src/features/readmission/data/readmissionDataset.parquet.impl.ts');
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      ...(useMockData ? {} : { [datasetImplFile]: datasetImpl }),
-      ...(useParquetStub ? { '@/data/readmit_30d.parquet?url': parquetStub } : {}),
-    },
-  },
-  server: {
-    port: 5173,
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api/, ''),
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  return {
+    base: env.VITE_BASE_PATH || '/Readmission-Factors/',
+    plugins: [react(), tailwindcss()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+        ...(useMockData ? {} : { [datasetImplFile]: datasetImpl }),
+        ...(useParquetStub ? { '@/data/readmit_30d.parquet?url': parquetStub } : {}),
       },
     },
-  },
+    server: {
+      port: 5173,
+      proxy: {
+        '/api': {
+          target: 'http://127.0.0.1:8000',
+          changeOrigin: true,
+          rewrite: (p) => p.replace(/^\/api/, ''),
+        },
+      },
+    },
+  };
 });

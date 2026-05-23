@@ -98,46 +98,63 @@ http://localhost:5173
 
 ---
 
-## 🗄️ Backend (FastAPI + Postgres)
+## Supabase + GitHub Pages (recommended)
 
-Local API for assigned cases, auth, and persisted annotations.
+Production uses **Supabase** (Postgres + Auth + RLS) and **GitHub Pages** — no Docker or FastAPI required.
+
+### 1. Supabase setup
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. Disable public sign-ups under **Authentication → Settings**.
+3. Run [`supabase/schema.sql`](supabase/schema.sql) in the SQL Editor.
+
+### 2. Cohort + clinician setup (notebook)
+
+```bash
+pip install -r notebooks/requirements.txt
+cp notebooks/.env.example notebooks/.env   # add SUPABASE_URL + service role key
+jupyter notebook notebooks/setup_cohort.ipynb
+```
+
+The notebook imports cases from parquet, creates 2 clinician accounts, and assigns 30 cases each.
+
+### 3. Local frontend
+
+```bash
+cp .env.local.example .env.local   # VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
+npm run dev
+```
+
+Open `http://localhost:5173/` (set `VITE_BASE_PATH=/` in `.env.local`).
+
+### 4. Deploy to GitHub Pages
+
+Add repo secrets: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+
+Push to `main` — the workflow in [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) deploys to:
+
+```text
+https://lorenzosimone25.github.io/Readmission-Factors/
+```
+
+Enable **Settings → Pages → Source: GitHub Actions**.
+
+---
+
+## Legacy backend (FastAPI + Postgres)
+
+Optional local API (not used by the Supabase frontend path):
 
 ```bash
 docker compose up -d
 cp backend/.env.example backend/.env
-cd backend
-pip install -r requirements.txt
+cd backend && pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-Import cohort (from repo root, with parquet on disk):
-
-```bash
-python backend/scripts/import_parquet.py --path src/data/readmit_30d.parquet
-```
-
-Assign all cases to the demo reviewer (admin token required after login):
-
-```bash
-curl -X POST http://127.0.0.1:8000/admin/assign-all-to-reviewer \
-  -H "Authorization: Bearer <admin-jwt>" \
-  -H "Content-Type: application/json" \
-  -d '{"user_email":"reviewer@example.com"}'
-```
-
-**Bootstrap users:** `admin@example.com` / `changeme-admin` · `reviewer@example.com` / `changeme-reviewer`
-
-**Frontend with API** (`.env.local`):
-
-```text
-VITE_API_BASE_URL=/api
-```
-
-Do **not** set `VITE_USE_MOCK_CASES` when using the API. Vite proxies `/api` → `http://127.0.0.1:8000`.
-
 ---
 
-## ☁️ Deploy on Render
+## Legacy deploy on Render
 
 Use the root `render.yaml` blueprint: **Postgres** + **Python Web Service** (`readmission-api`) + **Static Site** (`readmission-factors`).
 

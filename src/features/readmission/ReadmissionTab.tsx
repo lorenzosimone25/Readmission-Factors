@@ -3,6 +3,7 @@ import { CaseReviewBar } from '@/features/readmission/components/CaseReviewBar';
 import { DualNoteWorkspace } from '@/features/readmission/components/DualNoteWorkspace';
 import { FactorWorkbenchPanel } from '@/features/readmission/components/FactorWorkbenchPanel';
 import { useReadmissionAnnotation } from '@/features/readmission/hooks/useReadmissionAnnotation';
+import { useReadmissionSession } from '@/features/readmission/context/ReadmissionSessionContext';
 import type { ReadmissionCase } from '@/features/readmission/types/readmissionAnnotation';
 
 type Props = {
@@ -10,15 +11,26 @@ type Props = {
   queueRowIds: string[];
   onNavigateCase: (rowId: string) => void;
   onQueueRefresh?: () => void;
+  onBackToQueue?: () => void;
+  onSubmitSuccess?: () => void;
 };
 
-export function ReadmissionTab({ activeCase, queueRowIds, onNavigateCase, onQueueRefresh }: Props) {
+export function ReadmissionTab({
+  activeCase,
+  queueRowIds,
+  onNavigateCase,
+  onQueueRefresh,
+  onBackToQueue,
+  onSubmitSuccess,
+}: Props) {
   const ws = useReadmissionAnnotation({
     activeCase,
     queueRowIds,
     onNavigateCase,
     onQueueRefresh,
+    onSubmitSuccess,
   });
+  const session = useReadmissionSession();
 
   if (ws.loading || !ws.annotation || !ws.indexNote || !ws.readmissionNote) {
     return (
@@ -30,6 +42,15 @@ export function ReadmissionTab({ activeCase, queueRowIds, onNavigateCase, onQueu
 
   const submitBlocker =
     ws.submitValidation.errors[0] ?? 'Complete required factors before submitting.';
+
+  const handleBackToQueue = () => {
+    if (!onBackToQueue) return;
+    if (session) {
+      session.requestLeave(onBackToQueue);
+    } else {
+      onBackToQueue();
+    }
+  };
 
   return (
     <div data-theme="light" className="flex h-[calc(100svh-96px)] min-h-[640px] flex-col gap-3 overflow-hidden">
@@ -43,11 +64,16 @@ export function ReadmissionTab({ activeCase, queueRowIds, onNavigateCase, onQueu
         dirty={ws.dirty}
         canSubmit={ws.submitValidation.ok}
         submitBlocker={submitBlocker}
+        saveStatus={ws.saveStatus}
+        lastSavedAt={ws.lastSavedAt}
+        saveError={ws.saveError}
+        submitting={ws.submitting}
         onPrev={ws.goPrevCase}
         onNext={ws.goNextCase}
         onSaveDraft={ws.saveDraft}
-        onSubmit={ws.submitReview}
+        onSubmit={() => void ws.submitReview()}
         onExport={ws.exportJson}
+        onBackToQueue={onBackToQueue ? handleBackToQueue : undefined}
       />
 
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_340px] gap-3">

@@ -9,7 +9,9 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useAuth } from '@/context/AuthContext';
 import { readmissionApi } from '@/features/readmission/api/readmissionApi';
+import { hasReadmissionBackend } from '@/features/readmission/api/readmissionApiMode';
 import {
   filterQueueItems,
   sortQueueItems,
@@ -40,7 +42,9 @@ type ReadmissionQueueContextValue = {
 const ReadmissionQueueContext = createContext<ReadmissionQueueContextValue | null>(null);
 
 export function ReadmissionQueueProvider({ children }: { children: ReactNode }) {
+  const auth = useAuth();
   const navigate = useNavigate();
+  const backend = hasReadmissionBackend();
   const [items, setItems] = useState<CaseQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,8 +67,19 @@ export function ReadmissionQueueProvider({ children }: { children: ReactNode }) 
   }, []);
 
   useEffect(() => {
+    if (!backend) {
+      setLoading(false);
+      return;
+    }
+    if (auth.loading) return;
+    if (!auth.user) {
+      setItems([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     void refresh();
-  }, [refresh]);
+  }, [auth.loading, auth.user?.id, backend, refresh]);
 
   const filteredItems = useMemo(
     () => sortQueueItems(filterQueueItems(items, filter, search), sort),

@@ -3,7 +3,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { readmissionApi } from '@/features/readmission/api/readmissionApi';
 import { ReadmissionErrorBoundary } from '@/features/readmission/components/ReadmissionErrorBoundary';
+import { ReadmissionNavigationGuard } from '@/features/readmission/components/ReadmissionNavigationGuard';
 import { ReadmissionTab } from '@/features/readmission/ReadmissionTab';
+import { ReadmissionSessionProvider } from '@/features/readmission/context/ReadmissionSessionContext';
 import { useReadmissionQueue } from '@/features/readmission/context/ReadmissionQueueContext';
 import type { ReadmissionCase } from '@/features/readmission/types/readmissionAnnotation';
 
@@ -88,14 +90,24 @@ export function ReadmissionPage() {
     );
   }
 
+  const handleSubmitSuccess = () => {
+    void queue.refresh();
+    navigate('/?filter=submitted');
+  };
+
   return (
     <ReadmissionErrorBoundary>
-      <ReadmissionTab
-        activeCase={activeCase}
-        queueRowIds={queue.queueRowIds}
-        onNavigateCase={navigateCase}
-        onQueueRefresh={queue.refresh}
-      />
+      <ReadmissionSessionProvider onAfterSave={() => void queue.refresh()}>
+        <ReadmissionNavigationGuard />
+        <ReadmissionTab
+          activeCase={activeCase}
+          queueRowIds={queue.queueRowIds}
+          onNavigateCase={navigateCase}
+          onQueueRefresh={queue.refresh}
+          onBackToQueue={() => navigate('/')}
+          onSubmitSuccess={handleSubmitSuccess}
+        />
+      </ReadmissionSessionProvider>
     </ReadmissionErrorBoundary>
   );
 }

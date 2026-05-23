@@ -14,17 +14,17 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class CamelModel(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+
 class UserPublic(CamelModel):
+    model_config = ConfigDict(from_attributes=True, alias_generator=to_camel, populate_by_name=True)
+
     id: UUID
     email: EmailStr
     display_name: str
     role: str
-
-    model_config = ConfigDict(from_attributes=True, alias_generator=to_camel, populate_by_name=True)
-
-
-class CamelModel(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
 class CaseMetadataOut(CamelModel):

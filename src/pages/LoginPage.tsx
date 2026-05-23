@@ -7,8 +7,8 @@ import { hasReadmissionBackend } from '@/features/readmission/api/readmissionApi
 export function LoginPage() {
   const auth = useAuth();
   const location = useLocation();
-  const [email, setEmail] = useState('reviewer@example.com');
-  const [password, setPassword] = useState('changeme-reviewer');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -95,10 +95,6 @@ export function LoginPage() {
         >
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>
-
-        <p className="mt-4 text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-          Demo: reviewer@example.com / changeme-reviewer · admin@example.com / changeme-admin
-        </p>
       </form>
     </div>
   );

@@ -9,6 +9,7 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!.env.local.example
 
 # Clinical dataset (not versioned — place locally in src/data/)
 *.parquet
@@ -36,6 +37,9 @@ Thumbs.db
 
 # Scratch / local notebooks
 *.ipynb
+!notebooks/setup_cohort.ipynb
+notebooks/.env
+notebooks/assignment_manifest.json
 test.ipynb
 
 # Cursor / agent artifacts
