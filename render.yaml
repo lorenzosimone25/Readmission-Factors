@@ -1,0 +1,11 @@
+# Render Blueprint — Static Site
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: readmission-factors
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_USE_MOCK_CASES
+        value: 'true'

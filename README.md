@@ -2,9 +2,9 @@
 
 # 🫀 Readmission Factors
 
-**Structured clinical review of 30-day heart failure readmissions**
+**Clinical annotation workspace for 30-day heart failure readmissions**
 
-*Index and readmission discharge summaries, side by side — highlight evidence, codify factors, export JSON.*
+📄 Review paired discharge summaries · 🖍️ Highlight supporting evidence · 🧩 Define readmission factors · 📤 Export structured JSON
 
 <br/>
 
@@ -17,24 +17,27 @@
 
 ---
 
-## 📋 What this is
+## 🩺 Overview
 
-A browser-based annotation workspace for studying **why patients come back** after an index HF hospitalization. Reviewers work through a case queue, read paired discharge summaries, attach highlighted evidence to readmission factors, and export structured annotations for downstream analysis.
+**Readmission Factors** is a browser-based annotation tool for reviewing why patients are readmitted after an index heart failure hospitalization.
 
-Built for a Yale readmission research workflow — focused on clinician judgment, not black-box summarization. Notes are rendered verbatim; every span is stored with character offsets into the original text.
+Reviewers move through a case queue, compare the index and readmission discharge summaries, highlight clinically relevant evidence, group related spans, and convert those groups into structured readmission factors for downstream analysis.
+
+The app is designed for a Yale readmission research workflow where clinicians and reviewers can turn narrative discharge summaries into analyzable annotations.
 
 ---
 
 ## ✨ Features
 
-| | |
-| :---: | :--- |
-| 📂 **Notes Left** | Paginated case queue loaded from a local Parquet cohort (`readmit_30d.parquet`). Filter and search by patient, ICD code, days to readmit, ICU flag, and more. |
-| 📄 **Dual-note review** | Index HF discharge summary and readmission discharge summary shown together. Select text in either note to attach evidence. |
-| 🎨 **Factor workbench** | Color-coded evidence groups → finalized factors with role, modifiability, foreseeability, confidence (1–5), and optional rationale. |
-| 🧭 **Case navigation** | Prev/next through the queue in dataset order; drafts persist in `localStorage` while you move between cases. |
-| 💾 **JSON export** | Download a single annotation payload with case metadata, evidence spans, and factor definitions — ready for analysis pipelines. |
-| 🧪 **Mock mode** | Set `VITE_USE_MOCK_CASES=true` to develop against bundled fixtures when the cohort file isn't available. |
+| Feature | Description |
+| :--- | :--- |
+| 🗂️ **Case queue** | Browse cases loaded from a local Parquet cohort file, with filtering and search by patient, ICD code, days to readmission, ICU flag, and other metadata. |
+| 📑 **Dual-note review** | View the index HF discharge summary and readmission discharge summary side by side. Select text from either note as supporting evidence. |
+| 🖍️ **Evidence grouping** | Organize highlighted spans into color-coded evidence groups before finalizing them as readmission factors. |
+| 🧩 **Factor coding** | Assign each factor a role, modifiability, foreseeability, confidence score, and optional reviewer rationale. |
+| 🧭 **Case navigation** | Move through cases in dataset order. Draft annotations persist locally while navigating between patients. |
+| 📤 **JSON export** | Export a structured annotation payload with case metadata, evidence spans, factor definitions, and reviewer-entered fields. |
+| 🧪 **Mock mode** | Develop against bundled fixture cases by setting `VITE_USE_MOCK_CASES=true` when the cohort file is unavailable. |
 
 ---
 
@@ -48,55 +51,90 @@ cd Readmission-Factors
 npm install
 ```
 
-### Dataset
+### 📦 Dataset
 
-The cohort file is **not** checked into the repo. Copy your Parquet export here:
+The cohort file is not checked into the repository. Copy your Parquet export here:
 
-```
+```text
 src/data/readmit_30d.parquet
 ```
 
-Expected columns include `row_id`, `patient_identifier`, `subject_id`, `index_hadm_id`, `readmit_hadm_id`, `index_primary_icd_code`, `readmit_has_icu`, `days_to_readmit`, `index_discharge_summary`, and `readmit_discharge_summary`. ZSTD compression is supported via `hyparquet-compressors`.
+Expected columns include:
 
-### Run locally
+```text
+row_id
+patient_identifier
+subject_id
+index_hadm_id
+readmit_hadm_id
+index_primary_icd_code
+readmit_has_icu
+days_to_readmit
+index_discharge_summary
+readmit_discharge_summary
+```
+
+ZSTD-compressed Parquet files are supported through `hyparquet-compressors`.
+
+### 💻 Run locally
 
 ```bash
 npm run dev
 ```
 
-Open **http://localhost:5173**
+Then open:
 
-| Command | |
+```text
+http://localhost:5173
+```
+
+| Command | Description |
 | :--- | :--- |
-| `npm run dev` | Start the Vite dev server |
-| `npm run build` | Typecheck + production build |
-| `npm run preview` | Serve the built app |
+| `npm run dev` | Start the Vite development server |
+| `npm run build` | Typecheck and create a production build |
+| `npm run preview` | Serve the production build locally |
 | `npm run test` | Run Vitest unit tests |
-| `npm run lint` | ESLint |
+| `npm run lint` | Run ESLint |
+
+---
+
+## ☁️ Deploy on Render (Static Site)
+
+Use a **Static Site** (not a Web Service). The cohort Parquet file is not in Git, so production builds use demo fixtures unless you add the file another way.
+
+| Setting | Value |
+| :--- | :--- |
+| **Build Command** | `npm install && npm run build` |
+| **Publish Directory** | `dist` |
+| **Environment** | `VITE_USE_MOCK_CASES=true` |
+
+`render.yaml` in the repo encodes these defaults. After connecting the GitHub repo, trigger a new deploy.
+
+For real cohort data in production, serve cases from a private API (recommended) rather than bundling Parquet in the static site.
 
 ---
 
 ## 🗺️ App structure
 
-```
-/                 Notes Left — case queue and task estimates
-/research?case=…  Readmission tab — dual-note annotation for one case
+```text
+/                 Case queue and task overview
+/research?case=…  Dual-note readmission annotation workspace
 ```
 
 | Area | Path |
 | :--- | :--- |
-| Pages | `src/pages` |
-| Annotation UI | `src/features/readmission/components` |
-| State & hooks | `src/features/readmission/hooks`, `context/` |
-| Parquet loader | `src/features/readmission/data/readmissionDataset.ts` |
-| Types & export schema | `src/features/readmission/types`, `lib/exportAnnotation.ts` |
-| Architecture notes | `docs/readmission-annotation-architecture.md` |
+| 🧭 Pages | `src/pages` |
+| 🫀 Annotation UI | `src/features/readmission/components` |
+| 🧠 State and hooks | `src/features/readmission/hooks`, `context/` |
+| 📦 Parquet loader | `src/features/readmission/data/readmissionDataset.ts` |
+| 🧾 Types and export schema | `src/features/readmission/types`, `lib/exportAnnotation.ts` |
+| 📚 Architecture notes | `docs/readmission-annotation-architecture.md` |
 
 ---
 
 ## 🧱 Stack
 
-```
+```text
 React 19 · TypeScript · Vite 8 · Tailwind CSS 4
 React Router 7 · hyparquet · Framer Motion · Lucide icons
 Vitest · ESLint
@@ -108,24 +146,26 @@ Vitest · ESLint
 
 Each completed review exports a JSON document containing:
 
-- Case identifiers and Parquet metadata (HADM IDs, primary ICD, days to readmit)
-- `evidenceGroups` and `evidenceSpans` with exact character offsets
-- `factors` with clinical metadata and linked span IDs
-- `noteVersionHash` to detect note drift between sessions
+- 🪪 Case identifiers and Parquet metadata, including HADM IDs, primary ICD code, and days to readmission
+- 🖍️ Evidence groups and highlighted evidence spans
+- 🧩 Factor definitions with linked evidence span IDs
+- 🩺 Reviewer-coded fields such as role, modifiability, foreseeability, confidence, and rationale
+- 🔐 A note version hash for detecting changes in source note text across sessions
 
-Drafts auto-save to the browser; use **Export JSON** from the review bar when a case is ready.
+Drafts are saved in the browser while reviewing. Use **Export JSON** from the review bar when a case is ready.
 
 ---
 
 ## 📚 Docs
 
-- [`docs/readmission-annotation-architecture.md`](docs/readmission-annotation-architecture.md) — offset fidelity, section detection, factor workflow
-- [`docs/readmission-release-checklist.md`](docs/readmission-release-checklist.md) — pre-release QA
+- [`docs/readmission-annotation-architecture.md`](docs/readmission-annotation-architecture.md) — annotation model, evidence workflow, section handling, and export design
+- [`docs/readmission-release-checklist.md`](docs/readmission-release-checklist.md) — pre-release QA checklist
 
 ---
 
 <div align="center">
 
-**Readmission Factors** — *evidence-first review for HF readmission research.*
+**🫀 Readmission Factors**  
+*Clinical evidence annotation for heart failure readmission research.*
 
 </div>
