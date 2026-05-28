@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { readmissionApi } from '@/features/readmission/api/readmissionApi';
+import { hasReadmissionBackend } from '@/features/readmission/api/readmissionApiMode';
+import { caseCatalogRepository } from '@/features/readmission/offline/CaseCatalogRepository';
 import { ReadmissionErrorBoundary } from '@/features/readmission/components/ReadmissionErrorBoundary';
-import { ReadmissionNavigationGuard } from '@/features/readmission/components/ReadmissionNavigationGuard';
 import { ReadmissionTab } from '@/features/readmission/ReadmissionTab';
-import { ReadmissionSessionProvider } from '@/features/readmission/context/ReadmissionSessionContext';
 import { useReadmissionQueue } from '@/features/readmission/context/ReadmissionQueueContext';
 import type { ReadmissionCase } from '@/features/readmission/types/readmissionAnnotation';
 
@@ -30,7 +30,11 @@ export function ReadmissionPage() {
     setLoading(true);
     setError(null);
 
-    void readmissionApi.loadCase(caseParam).then((c) => {
+    const load = hasReadmissionBackend()
+      ? caseCatalogRepository.getCase(caseParam, { refreshFromNetwork: navigator.onLine })
+      : readmissionApi.loadCase(caseParam);
+
+    void load.then((c) => {
       if (cancelled) return;
       if (!c) {
         setActiveCase(null);
@@ -97,17 +101,13 @@ export function ReadmissionPage() {
 
   return (
     <ReadmissionErrorBoundary>
-      <ReadmissionSessionProvider onAfterSave={() => void queue.refresh()}>
-        <ReadmissionNavigationGuard />
-        <ReadmissionTab
-          activeCase={activeCase}
-          queueRowIds={queue.queueRowIds}
-          onNavigateCase={navigateCase}
-          onQueueRefresh={queue.refresh}
-          onBackToQueue={() => navigate('/')}
-          onSubmitSuccess={handleSubmitSuccess}
-        />
-      </ReadmissionSessionProvider>
+      <ReadmissionTab
+        activeCase={activeCase}
+        queueRowIds={queue.queueRowIds}
+        onNavigateCase={navigateCase}
+        onQueueRefresh={queue.refresh}
+        onSubmitSuccess={handleSubmitSuccess}
+      />
     </ReadmissionErrorBoundary>
   );
 }

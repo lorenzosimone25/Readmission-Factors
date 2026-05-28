@@ -129,10 +129,16 @@ export function validateForSubmit(
   }
 
   for (const group of annotation.evidenceGroups) {
+    if (group.finalizedFactorId) continue;
+    const name = group.label.trim() || 'Unnamed factor';
     const groupSpans = annotation.evidenceSpans.filter((sp) => sp.groupId === group.id);
-    if (groupSpans.length > 0 && !group.finalizedFactorId) {
-      warnings.push(
-        `Factor "${group.label}" has ${groupSpans.length} highlight(s) but is not completed.`,
+    if (groupSpans.length > 0) {
+      errors.push(
+        `Factor "${name}": incomplete — ${groupSpans.length} highlight(s) but not saved. Complete it or delete it.`,
+      );
+    } else {
+      errors.push(
+        `Factor "${name}": incomplete — no highlights and not saved. Complete it or delete it.`,
       );
     }
   }

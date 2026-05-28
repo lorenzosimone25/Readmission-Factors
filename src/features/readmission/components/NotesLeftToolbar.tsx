@@ -16,9 +16,8 @@ type Props = {
 const SEARCH_DEBOUNCE_MS = 180;
 
 const FILTERS: { id: QueueFilter; label: string }[] = [
-  { id: 'remaining', label: 'Remaining' },
   { id: 'all', label: 'All' },
-  { id: 'not_started', label: 'Not started' },
+  { id: 'remaining', label: 'Remaining' },
   { id: 'draft', label: 'In progress' },
   { id: 'submitted', label: 'Submitted' },
 ];

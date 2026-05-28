@@ -1,6 +1,7 @@
 import type {
   ClinicalNoteType,
   EvidenceGroup,
+  HighlightClickPayload,
   NoteSegment,
   ReadmissionFactor,
 } from '@/features/readmission/types/readmissionAnnotation';
@@ -12,7 +13,7 @@ type Props = {
   noteType: ClinicalNoteType;
   groupById: Map<string, EvidenceGroup>;
   factorById: Map<string, ReadmissionFactor>;
-  onHighlightClick: (groupId: string) => void;
+  onHighlightClick: (payload: HighlightClickPayload) => void;
 };
 
 export function NoteSegmentSpan({ seg, noteType, groupById, factorById, onHighlightClick }: Props) {
@@ -75,14 +76,20 @@ export function NoteSegmentSpan({ seg, noteType, groupById, factorById, onHighli
       }}
       onClick={(e) => {
         e.preventDefault();
-        if (primaryGroupId) onHighlightClick(primaryGroupId);
+        const spanId = seg.highlightSpanIds[0];
+        if (!spanId) return;
+        onHighlightClick({
+          spanId,
+          noteType,
+          anchorRect: (e.currentTarget as HTMLElement).getBoundingClientRect(),
+        });
       }}
       tabIndex={0}
       role="button"
       aria-label={
         factorLabel
-          ? `Delete factor: ${factorLabel}. Click to remove.`
-          : `Delete factor highlight: ${tooltipParts}. Click to remove.`
+          ? `Highlight for ${factorLabel}. Click for options.`
+          : `Highlight: ${tooltipParts}. Click for options.`
       }
     >
       {seg.text}

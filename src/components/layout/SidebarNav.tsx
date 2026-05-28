@@ -1,18 +1,53 @@
+import type { CSSProperties, ReactNode } from 'react';
 import { HeartPulse, History, LayoutDashboard, LogOut, Sparkles } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 
 import { BRANDING } from '@/config/branding';
 import { useAuth } from '@/context/AuthContext';
 import { hasReadmissionBackend } from '@/features/readmission/api/readmissionApi';
+import { useReadmissionSession } from '@/features/readmission/context/ReadmissionSessionContext';
 
 const PRIMARY = [
-  { to: '/', label: 'Notes Left', icon: LayoutDashboard, end: true },
-  { to: '/research', label: 'Readmission', icon: Sparkles, end: false },
+  { to: '/', label: 'Notes left', icon: LayoutDashboard, end: true, guarded: true },
+  { to: '/research', label: 'Readmission', icon: Sparkles, end: false, guarded: false },
 ] as const;
 
 const SECONDARY = [
   { id: 'your-searches', label: 'LLMs Responses', icon: History, disabled: true },
 ] as const;
+
+function GuardedNavLink({
+  to,
+  end,
+  className,
+  style,
+  children,
+}: {
+  to: string;
+  end?: boolean;
+  className: string;
+  style: (args: { isActive: boolean }) => CSSProperties;
+  children: ReactNode;
+}) {
+  const session = useReadmissionSession();
+  const navigate = useNavigate();
+
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={className}
+      style={style}
+      onClick={(e) => {
+        if (!session?.hasActiveCase || !session.dirty || session.guardDisabled) return;
+        e.preventDefault();
+        session.requestLeave(() => navigate(to));
+      }}
+    >
+      {children}
+    </NavLink>
+  );
+}
 
 export function SidebarNav() {
   const auth = useAuth();
@@ -57,22 +92,33 @@ export function SidebarNav() {
         <nav className="flex flex-col gap-0.5" aria-label="Primary">
           {PRIMARY.map((item) => {
             const Icon = item.icon;
+            const linkClass =
+              'flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors duration-[var(--motion-fast)]';
+            const linkStyle = ({ isActive }: { isActive: boolean }) => ({
+              color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+              background: isActive ? 'var(--color-panel-alt)' : 'transparent',
+              border: isActive ? '1px solid var(--color-border-strong)' : '1px solid transparent',
+              boxShadow: isActive ? '0 0 24px var(--color-map-glow)' : undefined,
+            });
 
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors duration-[var(--motion-fast)]"
-                style={({ isActive }) => ({
-                  color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
-                  background: isActive ? 'var(--color-panel-alt)' : 'transparent',
-                  border: isActive ? '1px solid var(--color-border-strong)' : '1px solid transparent',
-                  boxShadow: isActive ? '0 0 24px var(--color-map-glow)' : undefined,
-                })}
-              >
+            const content = (
+              <>
                 <Icon className="h-[18px] w-[18px] shrink-0 opacity-90" aria-hidden />
                 {item.label}
+              </>
+            );
+
+            if (item.guarded) {
+              return (
+                <GuardedNavLink key={item.to} to={item.to} end={item.end} className={linkClass} style={linkStyle}>
+                  {content}
+                </GuardedNavLink>
+              );
+            }
+
+            return (
+              <NavLink key={item.to} to={item.to} end={item.end} className={linkClass} style={linkStyle}>
+                {content}
               </NavLink>
             );
           })}

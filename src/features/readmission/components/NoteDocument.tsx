@@ -4,6 +4,7 @@ import { NoteSegmentSpan } from '@/features/readmission/components/NoteSegmentSp
 import type {
   ClinicalNoteType,
   EvidenceGroup,
+  HighlightClickPayload,
   NoteSegment,
   ReadmissionFactor,
 } from '@/features/readmission/types/readmissionAnnotation';
@@ -13,7 +14,7 @@ type Props = {
   noteType: ClinicalNoteType;
   groupById: Map<string, EvidenceGroup>;
   factorById: Map<string, ReadmissionFactor>;
-  onHighlightClick: (groupId: string) => void;
+  onHighlightClick: (payload: HighlightClickPayload) => void;
 };
 
 function NoteDocumentInner({ segments, noteType, groupById, factorById, onHighlightClick }: Props) {

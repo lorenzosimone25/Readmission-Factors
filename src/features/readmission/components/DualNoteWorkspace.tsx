@@ -6,6 +6,7 @@ import type {
   ClinicalNoteType,
   EvidenceGroup,
   EvidenceSpan,
+  HighlightClickPayload,
   NoteSegment,
   PendingSelection,
   ReadmissionFactor,
@@ -34,7 +35,7 @@ type Props = {
   readmissionScrollRef: RefObject<HTMLDivElement | null>;
   onSelectGroup: (groupId: string) => void;
   onAddFactor: () => void;
-  onHighlightClick: (groupId: string) => void;
+  onHighlightClick: (payload: HighlightClickPayload) => void;
   onAddHighlight: () => void;
 };
 

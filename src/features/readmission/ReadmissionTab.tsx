@@ -2,9 +2,9 @@ import { AnnotationToast } from '@/features/readmission/components/AnnotationToa
 import { CaseReviewBar } from '@/features/readmission/components/CaseReviewBar';
 import { DualNoteWorkspace } from '@/features/readmission/components/DualNoteWorkspace';
 import { FactorWorkbenchPanel } from '@/features/readmission/components/FactorWorkbenchPanel';
+import { HighlightSpanPopover } from '@/features/readmission/components/HighlightSpanPopover';
 import { SubmitReadinessPanel } from '@/features/readmission/components/SubmitReadinessPanel';
 import { useReadmissionAnnotation } from '@/features/readmission/hooks/useReadmissionAnnotation';
-import { useReadmissionSession } from '@/features/readmission/context/ReadmissionSessionContext';
 import type { ReadmissionCase } from '@/features/readmission/types/readmissionAnnotation';
 
 type Props = {
@@ -12,7 +12,6 @@ type Props = {
   queueRowIds: string[];
   onNavigateCase: (rowId: string) => void;
   onQueueRefresh?: () => void;
-  onBackToQueue?: () => void;
   onSubmitSuccess?: () => void;
 };
 
@@ -21,7 +20,6 @@ export function ReadmissionTab({
   queueRowIds,
   onNavigateCase,
   onQueueRefresh,
-  onBackToQueue,
   onSubmitSuccess,
 }: Props) {
   const ws = useReadmissionAnnotation({
@@ -31,8 +29,6 @@ export function ReadmissionTab({
     onQueueRefresh,
     onSubmitSuccess,
   });
-  const session = useReadmissionSession();
-
   if (ws.loading || !ws.annotation || !ws.indexNote || !ws.readmissionNote) {
     return (
       <div className="flex min-h-[400px] items-center justify-center text-sm" style={{ color: 'var(--color-text-tertiary)' }}>
@@ -44,22 +40,14 @@ export function ReadmissionTab({
   const submitBlocker =
     ws.submitValidation.errors[0] ?? 'Complete required factors before submitting.';
 
-  const handleBackToQueue = () => {
-    if (!onBackToQueue) return;
-    if (session) {
-      session.requestLeave(onBackToQueue);
-    } else {
-      onBackToQueue();
-    }
-  };
+  const cohortHashMismatch =
+    activeCase.noteVersionHash !== ws.annotation.noteVersionHash;
 
   return (
     <div data-theme="light" className="flex h-[calc(100svh-96px)] min-h-[640px] flex-col gap-3 overflow-hidden">
       <CaseReviewBar
         activeCase={ws.activeCase!}
         annotation={ws.annotation}
-        caseIndex={ws.caseIndex}
-        caseCount={ws.caseCount}
         dirty={ws.dirty}
         canSubmit={ws.submitValidation.ok}
         submitBlocker={submitBlocker}
@@ -67,17 +55,42 @@ export function ReadmissionTab({
         lastSavedAt={ws.lastSavedAt}
         saveError={ws.saveError}
         submitting={ws.submitting}
-        onPrev={ws.goPrevCase}
-        onNext={ws.goNextCase}
+        wasEverSubmitted={ws.wasEverSubmitted}
         onSaveDraft={ws.saveDraft}
         onSubmit={() => void ws.submitReview()}
         onExport={ws.exportJson}
-        onBackToQueue={onBackToQueue ? handleBackToQueue : undefined}
       />
+
+      {cohortHashMismatch ? (
+        <p
+          className="shrink-0 rounded-lg border px-3 py-2 text-[11px]"
+          style={{
+            borderColor: 'var(--color-accent-warning)',
+            background: 'hsla(40, 90%, 50%, 0.1)',
+            color: 'var(--color-accent-warning)',
+          }}
+        >
+          Case notes were updated on the server (version mismatch). Refresh your browser after
+          reconnecting so cases can re-download.
+        </p>
+      ) : null}
+
+      {ws.wasEverSubmitted ? (
+        <p
+          className="shrink-0 rounded-lg border px-3 py-2 text-[11px]"
+          style={{
+            borderColor: 'var(--color-border)',
+            background: 'hsla(210, 80%, 50%, 0.08)',
+            color: 'var(--color-text-secondary)',
+          }}
+        >
+          This case was submitted. Edits reopen as a draft — save, then resubmit when ready.
+        </p>
+      ) : null}
 
       <SubmitReadinessPanel
         validation={ws.submitValidation}
-        submitted={ws.annotation.status === 'submitted'}
+        submitted={ws.annotation.status === 'submitted' && !ws.dirty}
       />
 
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_340px] gap-3">
@@ -111,7 +124,7 @@ export function ReadmissionTab({
             readmissionScrollRef={ws.readmissionScrollRef}
             onSelectGroup={ws.selectGroup}
             onAddFactor={() => ws.addEvidenceGroup()}
-            onHighlightClick={ws.deleteFactorFromNote}
+            onHighlightClick={ws.openHighlightPopover}
             onAddHighlight={ws.addHighlightToActiveGroup}
           />
         </div>
@@ -149,12 +162,17 @@ export function ReadmissionTab({
             onDeleteFactor={ws.removeEvidenceGroup}
             onSaveFactor={ws.saveFactor}
             onUpdateGroupNote={ws.updateGroupNote}
-            onUpdateFactorFormDraft={ws.updateFactorFormDraft}
             onJumpToSpan={ws.scrollToSpan}
             onRemoveHighlight={ws.removeHighlight}
           />
         </div>
       </div>
+
+      <HighlightSpanPopover
+        anchor={ws.spanPopover}
+        onRemoveHighlight={ws.removeHighlight}
+        onDismiss={ws.closeHighlightPopover}
+      />
 
       <AnnotationToast toast={ws.toast} onDismiss={ws.dismissToast} />
     </div>

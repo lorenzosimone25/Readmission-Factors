@@ -36,7 +36,6 @@ type Props = {
   onDeleteFactor: (groupId: string) => void;
   onSaveFactor: (groupId: string, patch: FactorFinalizePatch) => void;
   onUpdateGroupNote: (groupId: string, note: string) => void;
-  onUpdateFactorFormDraft: (groupId: string, draft: FactorFormDraft) => void;
   onJumpToSpan: (spanId: string) => void;
   onRemoveHighlight: (spanId: string) => void;
 };
@@ -62,7 +61,6 @@ export function FactorWorkbenchPanel({
   onDeleteFactor,
   onSaveFactor,
   onUpdateGroupNote,
-  onUpdateFactorFormDraft,
   onJumpToSpan,
   onRemoveHighlight,
 }: Props) {
@@ -130,9 +128,10 @@ export function FactorWorkbenchPanel({
                 borderColor: isActive
                   ? activeFactorCardBorder(group.color)
                   : 'var(--color-border-strong)',
-                background: isActive
-                  ? activeFactorCardBackground(group.color)
-                  : 'var(--color-panel-solid)',
+                background:
+                  isActive && !isExpanded
+                    ? activeFactorCardBackground(group.color)
+                    : 'var(--color-panel-solid)',
                 boxShadow: isActive ? activeFactorCardShadow(group.color) : 'none',
               }}
               onClick={(e) => {
@@ -273,7 +272,6 @@ export function FactorWorkbenchPanel({
                       spans={spans}
                       existingFactor={factor}
                       draft={draft}
-                      onDraftChange={(d) => onUpdateFactorFormDraft(group.id, d)}
                       onFinalize={(patch) => onSaveFactor(group.id, patch)}
                       onGroupNoteChange={(note) => onUpdateGroupNote(group.id, note)}
                       onLabelChange={(label) => onRenameGroup(group.id, label)}
@@ -281,12 +279,6 @@ export function FactorWorkbenchPanel({
                       onRemoveHighlight={onRemoveHighlight}
                       compact
                     />
-                    {completionStatus === 'complete' ? (
-                      <p className="mt-2 text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
-                        Expand anytime to edit metadata or notes. Activate this factor to add more
-                        highlights.
-                      </p>
-                    ) : null}
                   </div>
                 </div>
               ) : null}

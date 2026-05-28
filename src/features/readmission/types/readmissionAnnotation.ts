@@ -92,7 +92,14 @@ export type NoteSegment = {
   text: string;
   sectionTitle: string;
   highlightGroupIds: string[];
+  highlightSpanIds: string[];
   isHeadingLine: boolean;
+};
+
+export type HighlightClickPayload = {
+  spanId: string;
+  noteType: ClinicalNoteType;
+  anchorRect: DOMRect;
 };
 
 export type FactorFinalizePatch = {

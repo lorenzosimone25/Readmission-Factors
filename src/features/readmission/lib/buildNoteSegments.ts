@@ -11,18 +11,18 @@ function sectionForChar(sections: NoteSection[], charIndex: number): string {
   return sections[0]?.sectionTitle ?? 'Full Note';
 }
 
-function groupIdsForInterval(
+function spansForInterval(
   startChar: number,
   endChar: number,
   spans: EvidenceSpan[],
-): string[] {
-  const ids: string[] = [];
+): EvidenceSpan[] {
+  const matched: EvidenceSpan[] = [];
   for (const sp of spans) {
     if (sp.startChar < endChar && sp.endChar > startChar) {
-      ids.push(sp.groupId);
+      matched.push(sp);
     }
   }
-  return [...new Set(ids)];
+  return matched;
 }
 
 function isHeadingLine(text: string, sectionTitle: string): boolean {
@@ -57,7 +57,9 @@ export function buildNoteSegments(
 
     const text = rawNote.slice(startChar, endChar);
     const sectionTitle = sectionForChar(sections, startChar);
-    const highlightGroupIds = groupIdsForInterval(startChar, endChar, evidenceSpans);
+    const matchedSpans = spansForInterval(startChar, endChar, evidenceSpans);
+    const highlightGroupIds = [...new Set(matchedSpans.map((sp) => sp.groupId))];
+    const highlightSpanIds = matchedSpans.map((sp) => sp.id);
 
     segments.push({
       startChar,
@@ -65,6 +67,7 @@ export function buildNoteSegments(
       text,
       sectionTitle,
       highlightGroupIds,
+      highlightSpanIds,
       isHeadingLine: isHeadingLine(text, sectionTitle),
     });
   }

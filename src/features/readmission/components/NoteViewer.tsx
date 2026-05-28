@@ -6,6 +6,7 @@ import { selectionToOffsets } from '@/features/readmission/lib/selectionToOffset
 import type {
   ClinicalNoteType,
   EvidenceGroup,
+  HighlightClickPayload,
   NoteSegment,
   PendingSelection,
   ReadmissionFactor,
@@ -23,7 +24,7 @@ type Props = {
   clearPendingSelection: () => void;
   activeGroup: EvidenceGroup | null;
   noteScrollRef: RefObject<HTMLDivElement | null>;
-  onHighlightClick: (groupId: string) => void;
+  onHighlightClick: (payload: HighlightClickPayload) => void;
   onAddHighlight: () => void;
 };
 

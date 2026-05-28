@@ -10,6 +10,7 @@ import { loadDraftRawFromStorage } from '@/features/readmission/lib/annotationSt
 export type CaseQueueItem = ReadmissionCaseMetadata & {
   annotationStatus: AnnotationStatus;
   estimatedTasks: number;
+  pendingSync?: boolean;
 };
 
 export type QueueFilter = 'all' | 'remaining' | 'not_started' | 'draft' | 'submitted';

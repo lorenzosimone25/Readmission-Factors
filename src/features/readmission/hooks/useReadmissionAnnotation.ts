@@ -12,8 +12,11 @@ import {
   updateEvidenceGroupNote,
   updateFinalizedFactorInAnnotation,
 } from '@/features/readmission/lib/annotationReducer';
-import { readmissionApi } from '@/features/readmission/api/readmissionApi';
+import { annotationRepository } from '@/features/readmission/api/annotationRepository';
 import { hasReadmissionBackend } from '@/features/readmission/api/readmissionApiMode';
+import { reopenSubmittedIfNeeded } from '@/features/readmission/lib/annotationPayload';
+import { scheduleAnnotationCheckpoint } from '@/features/readmission/offline/annotationCheckpoint';
+import { useSync } from '@/features/readmission/offline/SyncProvider';
 import {
   useReadmissionSession,
   useRegisterReadmissionSession,
@@ -31,6 +34,7 @@ import { downloadAnnotationJson } from '@/features/readmission/lib/exportAnnotat
 import { isDefaultFactorLabel } from '@/features/readmission/lib/factorLabelUtils';
 import { newId } from '@/features/readmission/lib/newId';
 import { findOverlappingOtherGroupSpan } from '@/features/readmission/lib/spanOverlap';
+import type { SpanPopoverAnchor } from '@/features/readmission/components/HighlightSpanPopover';
 import type {
   ClinicianReadmissionAnnotation,
   ClinicalNoteType,
@@ -38,9 +42,14 @@ import type {
   EvidenceSpan,
   FactorFinalizePatch,
   FactorFormDraft,
+  HighlightClickPayload,
   PendingSelection,
   ReadmissionCase,
 } from '@/features/readmission/types/readmissionAnnotation';
+
+function factorFormDraftsEqual(a: FactorFormDraft, b: FactorFormDraft): boolean {
+  return a.role === b.role && a.confidence === b.confidence && a.note === b.note;
+}
 
 function emptyAnnotation(activeCase: ReadmissionCase): ClinicianReadmissionAnnotation {
   const now = new Date().toISOString();
@@ -77,7 +86,7 @@ function caseMetadataFromCase(c: ReadmissionCase) {
 async function loadAnnotationForCase(
   activeCase: ReadmissionCase,
 ): Promise<ClinicianReadmissionAnnotation> {
-  const stored = await readmissionApi.loadAnnotation(
+  const stored = await annotationRepository.loadAnnotation(
     activeCase.caseId,
     activeCase.reviewerId,
     activeCase.noteVersionHash,
@@ -129,6 +138,9 @@ export function useReadmissionAnnotation({
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [wasEverSubmitted, setWasEverSubmitted] = useState(false);
+  const [spanPopover, setSpanPopover] = useState<SpanPopoverAnchor | null>(null);
+  const lastToastRef = useRef<{ text: string; at: number } | null>(null);
 
   const indexScrollRef = useRef<HTMLDivElement | null>(null);
   const readmissionScrollRef = useRef<HTMLDivElement | null>(null);
@@ -137,6 +149,9 @@ export function useReadmissionAnnotation({
   const groupCardRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
   const registerSession = useRegisterReadmissionSession();
   const session = useReadmissionSession();
+  const sync = useSync();
+  const syncNowRef = useRef(sync?.syncNow);
+  syncNowRef.current = sync?.syncNow;
   const requestLeave = session?.requestLeave ?? ((proceed: () => void) => proceed());
 
   const setPendingSelectionSafe = useCallback((next: PendingSelection) => {
@@ -150,6 +165,15 @@ export function useReadmissionAnnotation({
   }, []);
 
   const showToast = useCallback((text: string, variant: ToastVariant = 'info', details?: string[]) => {
+    const now = Date.now();
+    if (
+      variant === 'success' &&
+      lastToastRef.current?.text === text &&
+      now - lastToastRef.current.at < 800
+    ) {
+      return;
+    }
+    lastToastRef.current = { text, at: now };
     setToast({ id: newId('toast'), text, variant, details });
   }, []);
 
@@ -167,13 +191,20 @@ export function useReadmissionAnnotation({
     setAnnotationLoading(true);
     void loadAnnotationForCase(activeCase).then((ann) => {
       if (cancelled) return;
+      const snap = snapshot(ann);
+      if (lastSavedSnapshotRef.current === snap) {
+        setAnnotationLoading(false);
+        return;
+      }
       const firstGroupId = ann.evidenceGroups[0]?.id ?? null;
       setAnnotation(ann);
       setActiveGroupId(firstGroupId);
       setExpandedGroupId(firstGroupId);
+      setWasEverSubmitted(ann.status === 'submitted');
+      setSpanPopover(null);
       clearPendingSelection();
       setDirty(false);
-      lastSavedSnapshotRef.current = snapshot(ann);
+      lastSavedSnapshotRef.current = snap;
       setFactorFormDrafts({});
       setToast(null);
       setSaveStatus('idle');
@@ -288,14 +319,14 @@ export function useReadmissionAnnotation({
 
   const buildDraftPayload = useCallback((): ClinicianReadmissionAnnotation | null => {
     if (!activeCase || !annotation) return null;
-    if (annotation.status === 'submitted') return null;
+    const base = reopenSubmittedIfNeeded(annotation);
     const hasEdits =
-      annotation.evidenceSpans.length > 0 ||
-      annotation.status !== 'not_started' ||
-      annotation.factors.length > 0;
+      base.evidenceSpans.length > 0 ||
+      base.status !== 'not_started' ||
+      base.factors.length > 0;
     return {
-      ...annotation,
-      status: hasEdits ? ('draft' as const) : annotation.status,
+      ...base,
+      status: hasEdits ? ('draft' as const) : base.status,
       updatedAt: new Date().toISOString(),
       noteVersions: activeCase.noteVersions,
       caseMetadata: caseMetadataFromCase(activeCase),
@@ -308,12 +339,13 @@ export function useReadmissionAnnotation({
     setSaveStatus('saving');
     setSaveError(null);
     try {
-      await readmissionApi.saveAnnotation(next);
+      await annotationRepository.saveDraft(next);
       setAnnotation(next);
       lastSavedSnapshotRef.current = snapshot(next);
       setDirty(false);
       setSaveStatus('saved');
       setLastSavedAt(new Date().toISOString());
+      if (navigator.onLine) void syncNowRef.current?.();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setSaveStatus('error');
@@ -322,6 +354,9 @@ export function useReadmissionAnnotation({
     }
   }, [buildDraftPayload]);
 
+  const persistDraftRef = useRef(persistDraft);
+  persistDraftRef.current = persistDraft;
+
   const discardChanges = useCallback(() => {
     if (lastSavedSnapshotRef.current) {
       setAnnotation(JSON.parse(lastSavedSnapshotRef.current) as ClinicianReadmissionAnnotation);
@@ -329,30 +364,24 @@ export function useReadmissionAnnotation({
     setDirty(false);
   }, []);
 
+  const discardChangesRef = useRef(discardChanges);
+  discardChangesRef.current = discardChanges;
+
   useEffect(() => {
     if (!activeCase || !annotation || annotationLoading) {
       registerSession(null);
       return;
     }
-    const guardDisabled = annotation.status === 'submitted' || submitting;
+    const guardDisabled = submitting;
     registerSession({
       dirty,
       hasActiveCase: true,
       guardDisabled,
-      persistDraft,
-      discardChanges,
+      persistDraft: () => persistDraftRef.current(),
+      discardChanges: () => discardChangesRef.current(),
     });
     return () => registerSession(null);
-  }, [
-    activeCase,
-    annotation,
-    annotationLoading,
-    dirty,
-    discardChanges,
-    persistDraft,
-    registerSession,
-    submitting,
-  ]);
+  }, [activeCase?.rowId, annotationLoading, dirty, registerSession, submitting]);
 
   const markDirty = useCallback(() => setDirty(true), []);
 
@@ -360,7 +389,9 @@ export function useReadmissionAnnotation({
     (updater: (prev: ClinicianReadmissionAnnotation) => ClinicianReadmissionAnnotation) => {
       setAnnotation((prev) => {
         if (!prev) return prev;
-        return updater(prev);
+        const next = updater(reopenSubmittedIfNeeded(prev));
+        if (hasReadmissionBackend()) scheduleAnnotationCheckpoint(next);
+        return next;
       });
       markDirty();
     },
@@ -383,7 +414,6 @@ export function useReadmissionAnnotation({
 
   const selectGroup = useCallback((groupId: string) => {
     setActiveGroupId(groupId);
-    setExpandedGroupId(groupId);
   }, []);
 
   const toggleGroupExpand = useCallback(
@@ -395,7 +425,21 @@ export function useReadmissionAnnotation({
   );
 
   const updateFactorFormDraft = useCallback((groupId: string, draft: FactorFormDraft) => {
-    setFactorFormDrafts((prev) => ({ ...prev, [groupId]: draft }));
+    setFactorFormDrafts((prev) => {
+      const existing = prev[groupId];
+      if (existing && factorFormDraftsEqual(existing, draft)) return prev;
+      return { ...prev, [groupId]: draft };
+    });
+  }, []);
+
+  const ensureFactorFormDraft = useCallback((groupId: string, fallbackNote = '') => {
+    setFactorFormDrafts((prev) => {
+      if (prev[groupId]) return prev;
+      return {
+        ...prev,
+        [groupId]: { role: null, confidence: null, note: fallbackNote },
+      };
+    });
   }, []);
 
   const clearFactorFormDraft = useCallback((groupId: string) => {
@@ -431,13 +475,16 @@ export function useReadmissionAnnotation({
       setActiveGroupId(addedGroupId);
       setExpandedGroupId(addedGroupId);
       showToast(`"${resolvedLabel}" added — set its Label, then highlight in either note.`, 'success');
+      if (addedGroupId) {
+        ensureFactorFormDraft(addedGroupId, '');
+      }
       requestAnimationFrame(() => {
         if (addedGroupId) {
           groupCardRefs.current.get(addedGroupId)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
       });
     },
-    [showToast, updateAnnotation],
+    [ensureFactorFormDraft, showToast, updateAnnotation],
   );
 
   const saveScrollPosition = useCallback((noteType: ClinicalNoteType) => {
@@ -477,9 +524,10 @@ export function useReadmissionAnnotation({
         return resolveActiveGroupId(nextAnnotation, current);
       });
       setExpandedGroupId((current) => (current === groupId ? nextFirstId : current));
+      clearFactorFormDraft(groupId);
       showToast(`"${group.label}" removed.`, 'info');
     },
-    [annotation, showToast, updateAnnotation],
+    [annotation, clearFactorFormDraft, showToast, updateAnnotation],
   );
 
   const addHighlightToActiveGroup = useCallback(() => {
@@ -538,13 +586,17 @@ export function useReadmissionAnnotation({
     };
 
     updateAnnotation((prev) => addSpanToAnnotation(prev, span));
+    const group = annotation.evidenceGroups.find((g) => g.id === groupId);
+    ensureFactorFormDraft(groupId, group?.note ?? '');
     clearPendingSelection();
     window.getSelection()?.removeAllRanges();
     showToast('Highlighted.', 'success');
   }, [
     activeCase?.caseId,
+    annotation?.evidenceGroups,
     annotation?.evidenceSpans,
     clearPendingSelection,
+    ensureFactorFormDraft,
     groupById,
     pendingSelection,
     resolvedActiveGroupId,
@@ -596,7 +648,6 @@ export function useReadmissionAnnotation({
 
       updateAnnotation((prev) => finalizeGroupInAnnotation(prev, groupId, patch));
       clearFactorFormDraft(groupId);
-      setExpandedGroupId(groupId);
       showToast(`"${patch.label || 'Factor'}" completed.`, 'success');
     },
     [
@@ -607,6 +658,16 @@ export function useReadmissionAnnotation({
       updateAnnotation,
     ],
   );
+
+  const openHighlightPopover = useCallback((payload: HighlightClickPayload) => {
+    setSpanPopover({
+      spanId: payload.spanId,
+      noteType: payload.noteType,
+      anchorRect: payload.anchorRect,
+    });
+  }, []);
+
+  const closeHighlightPopover = useCallback(() => setSpanPopover(null), []);
 
   const deleteFactorFromNote = useCallback(
     (groupId: string) => {
@@ -644,8 +705,13 @@ export function useReadmissionAnnotation({
     if (!activeCase || !annotation) return;
     void persistDraft()
       .then(() => {
+        const syncedOnline = hasReadmissionBackend() && navigator.onLine;
         showToast(
-          hasReadmissionBackend() ? 'Draft saved.' : 'Draft saved locally.',
+          hasReadmissionBackend()
+            ? syncedOnline
+              ? 'Draft saved.'
+              : 'Draft saved on this device. Will sync when online.'
+            : 'Draft saved locally.',
           'success',
         );
       })
@@ -686,20 +752,32 @@ export function useReadmissionAnnotation({
       };
 
       try {
-        const saved = await readmissionApi.submitAnnotation(next);
+        const isResubmit = wasEverSubmitted;
+        const saved = await annotationRepository.submit(next);
         setAnnotation(saved);
+        setWasEverSubmitted(true);
         lastSavedSnapshotRef.current = snapshot(saved);
         setDirty(false);
         setSaveStatus('saved');
         setLastSavedAt(new Date().toISOString());
         setSaveError(null);
         onQueueRefresh?.();
+        if (navigator.onLine) void syncNowRef.current?.();
+        const offlineQueued = hasReadmissionBackend() && !navigator.onLine;
         if (result.warnings.length > 0) {
           showToast('Submitted with warnings.', 'warning', result.warnings);
+        } else if (offlineQueued) {
+          showToast(
+            isResubmit
+              ? 'Resubmitted on this device. Will sync when online.'
+              : 'Submitted on this device. Will sync when online.',
+            'success',
+          );
         } else {
-          showToast('Review submitted.', 'success');
+          showToast(isResubmit ? 'Review resubmitted.' : 'Review submitted.', 'success');
         }
-        onSubmitSuccess?.();
+        if (!offlineQueued) onSubmitSuccess?.();
+        else if (!navigator.onLine) onQueueRefresh?.();
       } catch (e) {
         showToast('Failed to submit.', 'error', [
           e instanceof Error ? e.message : 'Unknown error',
@@ -718,6 +796,7 @@ export function useReadmissionAnnotation({
     showToast,
     submitting,
     submitValidation,
+    wasEverSubmitted,
   ]);
 
   const exportJson = useCallback(() => {
@@ -782,6 +861,10 @@ export function useReadmissionAnnotation({
       updateGroupNote,
       scrollToSpan,
       deleteFactorFromNote,
+      openHighlightPopover,
+      closeHighlightPopover,
+      spanPopover,
+      wasEverSubmitted,
       saveDraft,
       submitReview,
       exportJson,
@@ -851,6 +934,10 @@ export function useReadmissionAnnotation({
     updateGroupNote,
     scrollToSpan,
     deleteFactorFromNote,
+    openHighlightPopover,
+    closeHighlightPopover,
+    spanPopover,
+    wasEverSubmitted,
     saveDraft,
     submitReview,
     exportJson,

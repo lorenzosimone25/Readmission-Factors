@@ -1,15 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  AlertTriangle,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  LayoutDashboard,
-  Loader2,
-  Save,
-  Send,
-} from 'lucide-react';
+import { AlertTriangle, Check, Download, Loader2, Save, Send } from 'lucide-react';
 
 import type {
   AnnotationStatus,
@@ -21,8 +11,6 @@ import type { SaveStatus } from '@/features/readmission/hooks/useReadmissionAnno
 type Props = {
   activeCase: ReadmissionCase;
   annotation: ClinicianReadmissionAnnotation;
-  caseIndex: number;
-  caseCount: number;
   dirty: boolean;
   canSubmit: boolean;
   submitBlocker: string;
@@ -30,12 +18,10 @@ type Props = {
   lastSavedAt: string | null;
   saveError: string | null;
   submitting: boolean;
-  onPrev: () => void;
-  onNext: () => void;
+  wasEverSubmitted?: boolean;
   onSaveDraft: () => void;
   onSubmit: () => void;
   onExport: () => void;
-  onBackToQueue?: () => void;
 };
 
 function statusLabel(status: AnnotationStatus): string {
@@ -169,8 +155,6 @@ function SaveIndicator({
 export function CaseReviewBar({
   activeCase,
   annotation,
-  caseIndex,
-  caseCount,
   dirty,
   canSubmit,
   submitBlocker,
@@ -178,15 +162,14 @@ export function CaseReviewBar({
   lastSavedAt,
   saveError,
   submitting,
-  onPrev,
-  onNext,
+  wasEverSubmitted = false,
   onSaveDraft,
   onSubmit,
   onExport,
-  onBackToQueue,
 }: Props) {
-  const isSubmitted = annotation.status === 'submitted';
-  const submitDisabled = isSubmitted || !canSubmit || submitting;
+  const isSubmitted = annotation.status === 'submitted' && !dirty;
+  const submitDisabled = !canSubmit || submitting;
+  const submitLabel = submitting ? 'Submitting…' : wasEverSubmitted ? 'Resubmit' : 'Submit';
 
   return (
     <header
@@ -214,41 +197,10 @@ export function CaseReviewBar({
       </div>
 
       <div className="ml-auto flex flex-wrap items-center gap-1.5">
-        {onBackToQueue ? (
-          <button
-            type="button"
-            onClick={onBackToQueue}
-            className="flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium"
-            style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
-          >
-            <LayoutDashboard className="h-3.5 w-3.5" />
-            Notes Left
-          </button>
-        ) : null}
-        <button
-          type="button"
-          disabled={caseIndex <= 0}
-          onClick={onPrev}
-          className="flex items-center gap-0.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium disabled:opacity-40"
-          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-          Prev
-        </button>
-        <button
-          type="button"
-          disabled={caseIndex < 0 || caseIndex >= caseCount - 1}
-          onClick={onNext}
-          className="flex items-center gap-0.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium disabled:opacity-40"
-          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
-        >
-          Next
-          <ChevronRight className="h-3.5 w-3.5" />
-        </button>
         <button
           type="button"
           onClick={onSaveDraft}
-          disabled={isSubmitted || saveStatus === 'saving'}
+          disabled={saveStatus === 'saving'}
           className="flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium disabled:opacity-40"
           style={{ borderColor: 'var(--color-border-strong)', background: 'var(--color-panel-alt)' }}
         >
@@ -264,7 +216,7 @@ export function CaseReviewBar({
           style={{ background: 'var(--color-accent-blue)' }}
         >
           {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-          {submitting ? 'Submitting…' : 'Submit'}
+          {submitLabel}
         </button>
         <button
           type="button"

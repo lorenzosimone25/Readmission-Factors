@@ -44,7 +44,11 @@ export function ReadmissionNavigationGuard() {
   };
 
   const handleSave = () => {
-    void session.saveAndLeave();
+    void session.saveAndLeave().then(() => {
+      if (blocker.state === 'blocked') {
+        blocker.proceed();
+      }
+    });
   };
 
   return (

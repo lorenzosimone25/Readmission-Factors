@@ -38,8 +38,10 @@ Thumbs.db
 # Scratch / local notebooks
 *.ipynb
 !notebooks/setup_cohort.ipynb
+!notebooks/inspect_annotations.ipynb
 notebooks/.env
 notebooks/assignment_manifest.json
+notebooks/exports/
 test.ipynb
 
 # Cursor / agent artifacts

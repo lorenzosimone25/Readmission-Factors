@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { SidebarNav } from '@/components/layout/SidebarNav';
+import { ConnectivityStatus } from '@/features/readmission/components/ConnectivityStatus';
 
 type Props = {
   children: ReactNode;
@@ -31,6 +32,9 @@ export function AppShell({ children }: Props) {
             padding: '18px 20px 20px 20px',
           }}
         >
+          <div className="mb-3 flex justify-end">
+            <ConnectivityStatus />
+          </div>
           {children}
         </div>
       </div>

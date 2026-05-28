@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { readmissionApi } from '@/features/readmission/api/readmissionApi';
 import { hasReadmissionBackend } from '@/features/readmission/api/readmissionApiMode';
+import { caseCatalogRepository } from '@/features/readmission/offline/CaseCatalogRepository';
 import {
   filterQueueItems,
   sortQueueItems,
@@ -56,7 +57,11 @@ export function ReadmissionQueueProvider({ children }: { children: ReactNode }) 
     setLoading(true);
     setError(null);
     try {
-      const summaries = await readmissionApi.listCaseSummaries();
+      const summaries = backend
+        ? await caseCatalogRepository.listQueue({
+            refreshFromNetwork: navigator.onLine,
+          })
+        : await readmissionApi.listCaseSummaries();
       setItems(summaries);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load case queue.');
@@ -64,7 +69,7 @@ export function ReadmissionQueueProvider({ children }: { children: ReactNode }) 
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [backend]);
 
   useEffect(() => {
     if (!backend) {
@@ -108,23 +113,39 @@ export function ReadmissionQueueProvider({ children }: { children: ReactNode }) 
     [navigate],
   );
 
-  const value: ReadmissionQueueContextValue = {
-    items,
-    filteredItems,
-    queueRowIds,
-    loading,
-    error,
-    filter,
-    setFilter,
-    search,
-    setSearch,
-    sort,
-    setSort,
-    refresh,
-    openCase,
-    remainingCaseCount,
-    totalEstimatedTasks,
-  };
+  const value = useMemo<ReadmissionQueueContextValue>(
+    () => ({
+      items,
+      filteredItems,
+      queueRowIds,
+      loading,
+      error,
+      filter,
+      setFilter,
+      search,
+      setSearch,
+      sort,
+      setSort,
+      refresh,
+      openCase,
+      remainingCaseCount,
+      totalEstimatedTasks,
+    }),
+    [
+      items,
+      filteredItems,
+      queueRowIds,
+      loading,
+      error,
+      filter,
+      search,
+      sort,
+      refresh,
+      openCase,
+      remainingCaseCount,
+      totalEstimatedTasks,
+    ],
+  );
 
   return (
     <ReadmissionQueueContext.Provider value={value}>{children}</ReadmissionQueueContext.Provider>

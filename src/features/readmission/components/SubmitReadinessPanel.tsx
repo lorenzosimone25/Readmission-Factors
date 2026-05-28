@@ -65,6 +65,16 @@ function humanizeFactorDetail(detail: string): string {
     const [, max, actual] = longNote;
     return `note is too long (${actual} / ${max} words).`;
   }
+  const incompleteWithSpans = detail.match(
+    /^incomplete — (\d+) highlight\(s\) but not saved\. Complete it or delete it\.$/,
+  );
+  if (incompleteWithSpans) {
+    const [, count] = incompleteWithSpans;
+    return `incomplete (${count} highlight${count === '1' ? '' : 's'}) — click Save & complete factor or delete it.`;
+  }
+  if (detail === 'incomplete — no highlights and not saved. Complete it or delete it.') {
+    return 'never finished — add highlights and save it, or delete it.';
+  }
   return detail;
 }
 

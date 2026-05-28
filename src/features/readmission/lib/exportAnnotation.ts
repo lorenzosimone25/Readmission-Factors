@@ -1,7 +1,9 @@
+import { prepareAnnotationForExport } from '@/features/readmission/lib/annotationPayload';
 import type { ClinicianReadmissionAnnotation } from '@/features/readmission/types/readmissionAnnotation';
 
 export function buildExportPayload(annotation: ClinicianReadmissionAnnotation): string {
-  return JSON.stringify(annotation, null, 2);
+  const publication = prepareAnnotationForExport(annotation);
+  return JSON.stringify(publication, null, 2);
 }
 
 export function downloadAnnotationJson(annotation: ClinicianReadmissionAnnotation, filename?: string): void {

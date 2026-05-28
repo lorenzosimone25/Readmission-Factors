@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { ConfidenceScale } from '@/features/readmission/components/ConfidenceScale';
 import { GroupHighlightList } from '@/features/readmission/components/GroupHighlightList';
@@ -25,7 +25,6 @@ type Props = {
   spans: EvidenceSpan[];
   existingFactor?: ReadmissionFactor | null;
   draft?: FactorFormDraft | null;
-  onDraftChange?: (draft: FactorFormDraft) => void;
   onFinalize: (patch: FactorFinalizePatch) => void;
   onJumpToSpan: (spanId: string) => void;
   onRemoveHighlight: (spanId: string) => void;
@@ -57,7 +56,6 @@ export function FactorFinalizeCard({
   spans,
   existingFactor = null,
   draft = null,
-  onDraftChange,
   onFinalize,
   onJumpToSpan,
   onRemoveHighlight,
@@ -82,14 +80,6 @@ export function FactorFinalizeCard({
     setConfidence(next.confidence);
     setNote(next.note);
   }, [group.id, existingFactor?.id]);
-
-  const emitDraft = useCallback(() => {
-    onDraftChange?.({ role, confidence, note });
-  }, [role, confidence, note, onDraftChange]);
-
-  useEffect(() => {
-    emitDraft();
-  }, [emitDraft]);
 
   const buildPatch = (): FactorFinalizePatch | null => {
     if (!role || confidence === null) return null;
@@ -138,8 +128,10 @@ export function FactorFinalizeCard({
 
   const formFields = (
     <div
-      className={compact ? 'space-y-2' : 'mt-3 space-y-2 border-t pt-3'}
-      style={compact ? undefined : { borderColor: 'var(--color-border)' }}
+      className={compact ? 'space-y-2' : 'mt-3 space-y-2'}
+      style={{
+        background: 'var(--color-panel-solid)',
+      }}
     >
       <label className="block">
         <span
@@ -153,8 +145,8 @@ export function FactorFinalizeCard({
           style={{
             borderColor: labelIsDefault
               ? 'var(--color-accent-danger)'
-              : 'var(--color-border)',
-            background: 'var(--color-panel-alt)',
+              : 'var(--color-border-strong)',
+            background: 'var(--color-panel-solid)',
             color: 'var(--color-text-primary)',
           }}
           value={group.label}
@@ -191,10 +183,10 @@ export function FactorFinalizeCard({
         >
           {ROLE_OPTIONS.map((opt) => {
             const selected = role === opt.value;
-            const palette =
-              opt.value === 'primary'
-                ? { bg: 'var(--color-accent-blue)', border: 'var(--color-accent-blue)' }
-                : { bg: 'hsl(35, 90%, 48%)', border: 'hsl(35, 90%, 42%)' };
+            const palette = {
+              bg: 'var(--color-accent-blue)',
+              border: 'var(--color-accent-blue)',
+            };
             return (
               <button
                 key={opt.value}
@@ -244,7 +236,10 @@ export function FactorFinalizeCard({
         Clinician note (optional)
         <textarea
           className={`${inputClass} min-h-[56px] resize-y`}
-          style={{ borderColor: 'var(--color-border)', background: 'var(--color-panel-alt)' }}
+          style={{
+            borderColor: 'var(--color-border-strong)',
+            background: 'var(--color-panel-solid)',
+          }}
           value={note}
           onChange={(e) => handleNoteInput(e.target.value)}
           onBlur={() => onGroupNoteChange?.(note.trim())}

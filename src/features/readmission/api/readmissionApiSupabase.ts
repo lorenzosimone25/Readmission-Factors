@@ -1,4 +1,5 @@
 import { getSupabase } from '@/lib/supabaseClient';
+import { prepareAnnotationForPersist } from '@/features/readmission/lib/annotationPayload';
 import { normalizeAnnotation } from '@/features/readmission/lib/annotationStorage';
 import type {
   ClinicianReadmissionAnnotation,
@@ -99,13 +100,17 @@ export const readmissionApiSupabase: ReadmissionApi = {
     const userId = await requireUserId();
     const supabase = getSupabase();
     const now = new Date().toISOString();
-    const status = annotation.status ?? 'draft';
+    const status = annotation.status === 'submitted' ? 'draft' : (annotation.status ?? 'draft');
+    const prepared = prepareAnnotationForPersist(
+      { ...annotation, updatedAt: now, status },
+      { mode: 'draft' },
+    );
 
     const { error: annError } = await supabase.from('annotations').upsert(
       {
         user_id: userId,
         row_id: annotation.caseId,
-        payload: payloadFromAnnotation({ ...annotation, updatedAt: now, status }),
+        payload: payloadFromAnnotation(prepared as ClinicianReadmissionAnnotation),
         note_version_hash: annotation.noteVersionHash,
         status,
         updated_at: now,
@@ -128,13 +133,16 @@ export const readmissionApiSupabase: ReadmissionApi = {
     const userId = await requireUserId();
     const supabase = getSupabase();
     const now = new Date().toISOString();
-    const submitted = { ...annotation, status: 'submitted' as const, updatedAt: now };
+    const prepared = prepareAnnotationForPersist(
+      { ...annotation, updatedAt: now, status: 'submitted' },
+      { mode: 'submit' },
+    );
 
     const { error: annError } = await supabase.from('annotations').upsert(
       {
         user_id: userId,
         row_id: annotation.caseId,
-        payload: payloadFromAnnotation(submitted),
+        payload: payloadFromAnnotation(prepared as ClinicianReadmissionAnnotation),
         note_version_hash: annotation.noteVersionHash,
         status: 'submitted',
         updated_at: now,
@@ -152,6 +160,6 @@ export const readmissionApiSupabase: ReadmissionApi = {
 
     if (assignError) throw new Error(assignError.message);
 
-    return normalizeAnnotation(submitted);
+    return normalizeAnnotation(prepared as ClinicianReadmissionAnnotation);
   },
 };

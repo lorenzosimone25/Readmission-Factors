@@ -42,7 +42,18 @@ export function ReadmissionSessionProvider({
   const [leaveSaving, setLeaveSaving] = useState(false);
 
   const registerSession = useCallback((next: SessionRegistration | null) => {
-    setRegistration(next);
+    setRegistration((prev) => {
+      if (next === null) return null;
+      if (
+        prev &&
+        prev.dirty === next.dirty &&
+        prev.hasActiveCase === next.hasActiveCase &&
+        prev.guardDisabled === next.guardDisabled
+      ) {
+        return prev;
+      }
+      return next;
+    });
   }, []);
 
   const requestLeave = useCallback(
@@ -70,7 +81,7 @@ export function ReadmissionSessionProvider({
     proceed?.();
   }, [pendingProceed, registration]);
 
-  const saveAndLeave = useCallback(async () => {
+  const saveAndLeave = useCallback(async (): Promise<void> => {
     if (!registration) return;
     setLeaveSaving(true);
     try {
