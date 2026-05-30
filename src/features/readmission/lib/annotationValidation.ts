@@ -20,6 +20,8 @@ export type ValidationResult = {
 export type CaseNotes = {
   indexRawNote: string;
   readmissionRawNote: string;
+  indexCanonicalNote: string;
+  readmissionCanonicalNote: string;
   noteVersionHash: string;
 };
 
@@ -32,8 +34,8 @@ export function validateEvidenceSpanText(
   return rawNote.slice(startChar, endChar) === selectedText;
 }
 
-function rawNoteForType(notes: CaseNotes, noteType: ClinicalNoteType): string {
-  return noteType === 'index_hf' ? notes.indexRawNote : notes.readmissionRawNote;
+function canonicalNoteForType(notes: CaseNotes, noteType: ClinicalNoteType): string {
+  return noteType === 'index_hf' ? notes.indexCanonicalNote : notes.readmissionCanonicalNote;
 }
 
 function finalizedFactors(annotation: ClinicianReadmissionAnnotation) {
@@ -110,8 +112,8 @@ export function validateForSubmit(
   }
 
   for (const span of annotation.evidenceSpans) {
-    const rawNote = rawNoteForType(notes, span.noteType);
-    if (!validateEvidenceSpanText(rawNote, span.startChar, span.endChar, span.selectedText)) {
+    const canonicalNote = canonicalNoteForType(notes, span.noteType);
+    if (!validateEvidenceSpanText(canonicalNote, span.startChar, span.endChar, span.selectedText)) {
       errors.push(
         `Evidence span ${span.id}: selectedText does not match ${span.noteType} note slice(${span.startChar}, ${span.endChar}).`,
       );

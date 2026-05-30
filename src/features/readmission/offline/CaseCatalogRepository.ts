@@ -28,15 +28,21 @@ export const caseCatalogRepository = {
   },
 
   async getCase(rowId: string, options?: { refreshFromNetwork?: boolean }): Promise<ReadmissionCase | null> {
-    const cached = await getCachedCase(rowId);
-    if (cached) {
-      if (hasReadmissionBackend() && options?.refreshFromNetwork && navigator.onLine) {
-        void readmissionApi.loadCase(rowId).then((c) => {
-          if (c) void putCase(c);
-        });
+    if (hasReadmissionBackend() && options?.refreshFromNetwork && navigator.onLine) {
+      try {
+        const remote = await readmissionApi.loadCase(rowId);
+        if (remote) {
+          await putCase(remote);
+          return remote;
+        }
+      } catch {
+        // fall through to cache
       }
-      return cached;
     }
+
+    const cached = await getCachedCase(rowId);
+    if (cached) return cached;
+
     if (!hasReadmissionBackend() || !navigator.onLine) return null;
     const remote = await readmissionApi.loadCase(rowId);
     if (remote) await putCase(remote);

@@ -102,14 +102,18 @@ export function ReadmissionTab({
             indexNote={{
               noteType: 'index_hf',
               title: 'Index discharge summary',
-              rawNote: ws.indexNote.rawNote,
+              canonicalNote: ws.indexNote.canonicalNote,
+              sectionMetaAtChar: ws.indexNote.sectionMetaAtChar,
               segments: ws.indexNote.segments,
+              storedSections: ws.indexNote.storedSections,
             }}
             readmissionNote={{
               noteType: 'readmission',
               title: 'Readmission discharge summary',
-              rawNote: ws.readmissionNote.rawNote,
+              canonicalNote: ws.readmissionNote.canonicalNote,
+              sectionMetaAtChar: ws.readmissionNote.sectionMetaAtChar,
               segments: ws.readmissionNote.segments,
+              storedSections: ws.readmissionNote.storedSections,
             }}
             groups={ws.annotation.evidenceGroups}
             groupById={ws.groupById}

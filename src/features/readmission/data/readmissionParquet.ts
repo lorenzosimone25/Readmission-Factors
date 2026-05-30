@@ -120,6 +120,9 @@ export async function loadCaseByRowId(rowId: string): Promise<ReadmissionCase | 
     reviewerId: DEFAULT_REVIEWER_ID,
     indexRawNote,
     readmissionRawNote,
+    indexFormattedNote: undefined,
+    readmissionFormattedNote: undefined,
+    noteCanonicalVersion: 'raw_v0',
     noteVersionHash,
     noteVersions,
   };

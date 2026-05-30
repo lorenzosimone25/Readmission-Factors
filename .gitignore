@@ -39,9 +39,11 @@ Thumbs.db
 *.ipynb
 !notebooks/setup_cohort.ipynb
 !notebooks/inspect_annotations.ipynb
+!notebooks/polish_notes.ipynb
 notebooks/.env
 notebooks/assignment_manifest.json
 notebooks/exports/
+notebooks/polish_runs/
 test.ipynb
 
 # Cursor / agent artifacts

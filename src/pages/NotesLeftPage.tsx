@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, RefreshCw } from 'lucide-react';
 
+import { useAuth } from '@/context/AuthContext';
 import { BootstrapProgressBanner } from '@/features/readmission/components/BootstrapProgressBanner';
 import { CaseQueueCard } from '@/features/readmission/components/CaseQueueCard';
 import { NotesLeftToolbar } from '@/features/readmission/components/NotesLeftToolbar';
@@ -9,7 +10,7 @@ import { useReadmissionQueue } from '@/features/readmission/context/ReadmissionQ
 import { useSync } from '@/features/readmission/offline/SyncProvider';
 import type { QueueFilter } from '@/features/readmission/lib/taskEstimate';
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 6;
 
 const VALID_FILTERS: ReadonlySet<QueueFilter> = new Set([
   'all',
@@ -18,13 +19,26 @@ const VALID_FILTERS: ReadonlySet<QueueFilter> = new Set([
   'submitted',
 ]);
 
+function welcomeHeading(displayName: string): string {
+  const trimmed = displayName.trim();
+  if (!trimmed) return 'Welcome';
+  if (/^prof\.?\s/i.test(trimmed)) return `Welcome, ${trimmed}`;
+  return `Welcome, ${trimmed}`;
+}
+
 export function NotesLeftPage() {
+  const auth = useAuth();
   const queue = useReadmissionQueue();
   const sync = useSync();
   const [page, setPage] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const appliedUrlFilterRef = useRef<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const heading = useMemo(
+    () => welcomeHeading(auth.user?.displayName ?? ''),
+    [auth.user?.displayName],
+  );
 
   useEffect(() => {
     const f = searchParams.get('filter');
@@ -109,13 +123,13 @@ export function NotesLeftPage() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            Patients left to annotate
+            {heading}
           </h1>
           <p
             className="mt-1 flex items-center gap-1.5 text-sm"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            {queue.remainingCaseCount.toLocaleString()} cases remaining
+            {queue.remainingCaseCount.toLocaleString()} patients left to annotate
             <Loader2
               className="h-3.5 w-3.5 animate-spin transition-opacity duration-150"
               style={{
@@ -159,7 +173,7 @@ export function NotesLeftPage() {
         </p>
       ) : (
         <div
-          className="grid min-h-[480px] auto-rows-min grid-cols-1 items-start gap-3 transition-opacity duration-150 md:grid-cols-2 xl:grid-cols-3"
+          className="grid auto-rows-min grid-cols-1 items-start gap-3 transition-opacity duration-150 md:grid-cols-2 xl:grid-cols-3"
           style={{
             opacity: isPending ? 0.55 : 1,
             pointerEvents: isPending ? 'none' : undefined,
@@ -178,7 +192,7 @@ export function NotesLeftPage() {
         </div>
       )}
 
-      {totalPages > 1 ? (
+      {queue.filteredItems.length > 0 ? (
         <div className="flex items-center justify-between gap-2 border-t pt-3" style={{ borderColor: 'var(--color-border)' }}>
           <button
             type="button"

@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "preambleBeforeFirst": true,
+  "minNoteCharsForMultiSectionWarning": 1500,
+  "denyHeadings": [
+    "NAME",
+    "UNIT NO",
+    "UNIT NUMBER",
+    "ADMISSION DATE",
+    "DISCHARGE DATE",
+    "DATE OF BIRTH",
+    "DOB",
+    "SEX",
+    "GENDER",
+    "SERVICE",
+    "ATTENDING",
+    "PRIMARY CARE",
+    "PCP",
+    "EMERGENCY CONTACT",
+    "CODE STATUS",
+    "MRN",
+    "RECORD DATE",
+    "DICTATED BY",
+    "DICTATED ON",
+    "SIGNED BY",
+    "ELECTRONICALLY SIGNED",
+    "MEDQUIST",
+    "ADDENDUM TO PREVIOUS DISCHARGE SUMMARY"
+  ],
+  "footerMarkers": [
+    "MEDQUIST",
+    "Electronically signed",
+    "Dictated By",
+    "Signed By"
+  ],
+  "canonical": [
+    {
+      "title": "Chief Complaint",
+      "aliases": ["CHIEF COMPLAINT", "CC", "C/C"],
+      "priority": 20
+    },
+    {
+      "title": "History of Present Illness",
+      "aliases": [
+        "HISTORY OF PRESENT ILLNESS",
+        "HPI",
+        "PRESENT ILLNESS",
+        "HISTORY OF THE PRESENT ILLNESS"
+      ],
+      "priority": 19
+    },
+    {
+      "title": "Past Medical History",
+      "aliases": [
+        "PAST MEDICAL HISTORY",
+        "PMH",
+        "PAST MEDICAL HX",
+        "MEDICAL HISTORY"
+      ],
+      "priority": 18
+    },
+    {
+      "title": "Social History",
+      "aliases": ["SOCIAL HISTORY", "SH", "SOCIAL HX"],
+      "priority": 17
+    },
+    {
+      "title": "Family History",
+      "aliases": ["FAMILY HISTORY", "FH", "FAMILY HX"],
+      "priority": 16
+    },
+    {
+      "title": "Allergies",
+      "aliases": ["ALLERGIES", "ALLERGY", "ADVERSE DRUG REACTIONS"],
+      "priority": 15
+    },
+    {
+      "title": "Medications on Admission",
+      "aliases": [
+        "MEDICATIONS ON ADMISSION",
+        "MEDS ON ADMISSION",
+        "ADMISSION MEDICATIONS",
+        "HOME MEDICATIONS"
+      ],
+      "priority": 14
+    },
+    {
+      "title": "Physical Exam",
+      "aliases": [
+        "PHYSICAL EXAM",
+        "PHYSICAL EXAMINATION",
+        "PE",
+        "EXAM ON DISCHARGE",
+        "DISCHARGE EXAM"
+      ],
+      "priority": 13
+    },
+    {
+      "title": "Pertinent Results",
+      "aliases": [
+        "PERTINENT RESULTS",
+        "LABS",
+        "LABORATORY DATA",
+        "STUDIES",
+        "IMAGING",
+        "RADIOLOGY",
+        "DIAGNOSTIC STUDIES",
+        "SIGNIFICANT RESULTS"
+      ],
+      "priority": 12
+    },
+    {
+      "title": "Brief Hospital Course",
+      "aliases": [
+        "BRIEF HOSPITAL COURSE",
+        "HOSPITAL COURSE",
+        "HOSP COURSE",
+        "COURSE IN THE HOSPITAL",
+        "BRIEF COURSE",
+        "HOSPITALIZATION COURSE"
+      ],
+      "priority": 11
+    },
+    {
+      "title": "Discharge Diagnosis",
+      "aliases": [
+        "DISCHARGE DIAGNOSIS",
+        "DISCHARGE DIAGNOSES",
+        "PRIMARY DIAGNOSIS",
+        "FINAL DIAGNOSIS",
+        "DISCH DX"
+      ],
+      "priority": 10
+    },
+    {
+      "title": "Discharge Condition",
+      "aliases": ["DISCHARGE CONDITION", "CONDITION ON DISCHARGE"],
+      "priority": 9
+    },
+    {
+      "title": "Discharge Disposition",
+      "aliases": ["DISCHARGE DISPOSITION", "DISPOSITION"],
+      "priority": 8
+    },
+    {
+      "title": "Discharge Medications",
+      "aliases": [
+        "DISCHARGE MEDICATIONS",
+        "MEDICATIONS ON DISCHARGE",
+        "DISCHARGE MEDS",
+        "MEDS ON DISCHARGE"
+      ],
+      "priority": 7
+    },
+    {
+      "title": "Discharge Instructions",
+      "aliases": ["DISCHARGE INSTRUCTIONS", "INSTRUCTIONS"],
+      "priority": 6
+    },
+    {
+      "title": "Followup Instructions",
+      "aliases": [
+        "FOLLOWUP INSTRUCTIONS",
+        "FOLLOW UP INSTRUCTIONS",
+        "FOLLOW-UP INSTRUCTIONS",
+        "FOLLOW UP",
+        "F/U INSTRUCTIONS"
+      ],
+      "priority": 5
+    }
+  ]
+}

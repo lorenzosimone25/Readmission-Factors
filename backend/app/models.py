@@ -35,6 +35,13 @@ class Case(Base):
     readmit_has_icu: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     index_discharge_summary: Mapped[str] = mapped_column(Text, default="")
     readmit_discharge_summary: Mapped[str] = mapped_column(Text, default="")
+    index_discharge_summary_formatted: Mapped[str] = mapped_column(Text, default="")
+    readmit_discharge_summary_formatted: Mapped[str] = mapped_column(Text, default="")
+    index_note_sections: Mapped[list] = mapped_column(JSONB, default=list)
+    readmit_note_sections: Mapped[list] = mapped_column(JSONB, default=list)
+    note_formatting_meta: Mapped[dict] = mapped_column(JSONB, default=dict)
+    note_canonical_version: Mapped[str] = mapped_column(String(32), default="raw_v0")
+    note_enrichment_version: Mapped[str] = mapped_column(String(64), default="")
     note_version_hash: Mapped[str] = mapped_column(String(128), default="")
 
     assignments: Mapped[list["Assignment"]] = relationship(back_populates="case")

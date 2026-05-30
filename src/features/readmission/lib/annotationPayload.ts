@@ -17,6 +17,13 @@ export type PublicationFactor = {
   evidenceSpanIds: string[];
 };
 
+export type FactorSectionSummary = {
+  factorId: string;
+  label: string;
+  sectionIds: string[];
+  sectionTitles: string[];
+};
+
 export type PublicationAnnotation = Omit<
   ClinicianReadmissionAnnotation,
   'factors' | 'evidenceGroups' | 'evidenceSpans'
@@ -24,6 +31,10 @@ export type PublicationAnnotation = Omit<
   factors: PublicationFactor[];
   evidenceGroups: EvidenceGroup[];
   evidenceSpans: EvidenceSpan[];
+};
+
+export type ExportAnnotation = PublicationAnnotation & {
+  factorSectionSummary?: FactorSectionSummary[];
 };
 
 function slimFactor(factor: ReadmissionFactor): PublicationFactor {
@@ -100,14 +111,39 @@ export function prepareAnnotationForPersist(
 }
 
 /** Download/export shape: finalized factors and linked evidence only. */
+export function buildFactorSectionSummary(
+  annotation: PublicationAnnotation,
+): FactorSectionSummary[] {
+  const spanById = new Map(annotation.evidenceSpans.map((span) => [span.id, span]));
+  return annotation.factors.map((factor) => {
+    const sectionIds = new Set<string>();
+    const sectionTitles = new Set<string>();
+    for (const spanId of factor.evidenceSpanIds) {
+      const span = spanById.get(spanId);
+      if (!span) continue;
+      if (span.sectionId) sectionIds.add(span.sectionId);
+      if (span.sectionTitle) sectionTitles.add(span.sectionTitle);
+    }
+    return {
+      factorId: factor.id,
+      label: factor.label,
+      sectionIds: [...sectionIds],
+      sectionTitles: [...sectionTitles],
+    };
+  });
+}
+
 export function prepareAnnotationForExport(
   annotation: ClinicianReadmissionAnnotation,
-): PublicationAnnotation {
+): ExportAnnotation {
   const prepared = prepareAnnotationForPersist(
     { ...annotation, status: annotation.status === 'submitted' ? 'submitted' : annotation.status },
     { mode: 'submit' },
   );
-  return prepared;
+  return {
+    ...prepared,
+    factorSectionSummary: buildFactorSectionSummary(prepared),
+  };
 }
 
 /** Reopen a submitted annotation for editing (revise workflow). */

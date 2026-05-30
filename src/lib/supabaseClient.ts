@@ -38,7 +38,21 @@ export type CaseRow = {
   readmit_has_icu: boolean | null;
   index_discharge_summary: string;
   readmit_discharge_summary: string;
+  index_discharge_summary_formatted?: string;
+  readmit_discharge_summary_formatted?: string;
+  index_note_sections?: StoredNoteSectionRow[] | null;
+  readmit_note_sections?: StoredNoteSectionRow[] | null;
+  note_formatting_meta?: Record<string, unknown> | null;
+  note_canonical_version?: string;
+  note_enrichment_version?: string;
   note_version_hash: string;
+};
+
+export type StoredNoteSectionRow = {
+  id: string;
+  title: string;
+  startChar: number;
+  endChar: number;
 };
 
 export type AssignmentRow = {

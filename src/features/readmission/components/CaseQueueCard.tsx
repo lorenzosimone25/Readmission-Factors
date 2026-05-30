@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { BookOpenText  , FilePenLine } from 'lucide-react';
+import { ArrowRight, FilePenLine } from 'lucide-react';
 
 import { DaysToReadmitBar } from '@/features/readmission/components/DaysToReadmitBar';
 import type { CaseQueueItem } from '@/features/readmission/lib/taskEstimate';
@@ -107,9 +107,18 @@ function CaseQueueCardInner({ item, onReview, reviewDisabled = false, reviewDisa
       </dl>
 
       <div
-        className="mt-4 flex items-center justify-end gap-2 border-t pt-3"
+        className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t pt-3"
         style={{ borderColor: 'var(--color-border)' }}
       >
+        {item.estimatedReadingMinutes ? (
+          <span
+            className="mr-auto text-[10px] tabular-nums"
+            style={{ color: 'var(--color-text-tertiary)' }}
+            title="Estimated time to read both discharge summaries"
+          >
+            ~{item.estimatedReadingMinutes} min read
+          </span>
+        ) : null}
         <button
           type="button"
           disabled={reviewDisabled}
@@ -131,7 +140,7 @@ function CaseQueueCardInner({ item, onReview, reviewDisabled = false, reviewDisa
           ) : (
             <>
               Start reviewing
-              <BookOpenText  className="h-4 w-4" aria-hidden />
+              <ArrowRight className="h-4 w-4" aria-hidden />
             </>
           )}
         </button>

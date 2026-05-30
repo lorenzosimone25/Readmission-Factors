@@ -16,7 +16,9 @@ import type { ReadmissionApi } from '@/features/readmission/api/readmissionApiTy
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_CASES === 'true';
 
 async function mockSummaries(): Promise<CaseQueueItem[]> {
-  return MOCK_READMISSION_CASES.map((c) => buildQueueItem(toMetadata(c)));
+  return MOCK_READMISSION_CASES.map((c) =>
+    buildQueueItem(toMetadata(c), undefined, c.indexRawNote.length + c.readmissionRawNote.length),
+  );
 }
 
 function toMetadata(c: ReadmissionCase): ReadmissionCaseMetadata {

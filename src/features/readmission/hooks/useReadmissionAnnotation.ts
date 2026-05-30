@@ -28,7 +28,17 @@ import {
   type CaseNotes,
 } from '@/features/readmission/lib/annotationValidation';
 import { buildNoteSegments } from '@/features/readmission/lib/buildNoteSegments';
-import { detectSections } from '@/features/readmission/lib/detectSections';
+import {
+  annotationSectionEnvelopeFromCase,
+  backfillSpanSectionIds,
+} from '@/features/readmission/lib/sectionAnnotation';
+import {
+  canonicalNoteText,
+  caseNotesFromReadmissionCase,
+  sectionMetaAtChar,
+  sectionsForNote,
+} from '@/features/readmission/lib/canonicalNote';
+import { resolvedStoredSections } from '@/features/readmission/lib/storedSectionsForNote';
 import { createDefaultEvidenceGroups } from '@/features/readmission/lib/defaultEvidenceGroups';
 import { downloadAnnotationJson } from '@/features/readmission/lib/exportAnnotation';
 import { isDefaultFactorLabel } from '@/features/readmission/lib/factorLabelUtils';
@@ -92,8 +102,9 @@ async function loadAnnotationForCase(
     activeCase.noteVersionHash,
   );
   const ann = normalizeAnnotation(stored ?? emptyAnnotation(activeCase));
+  const withSections = backfillSpanSectionIds(ann, activeCase);
   return {
-    ...ann,
+    ...withSections,
     caseMetadata: caseMetadataFromCase(activeCase),
     reviewerId: activeCase.reviewerId,
   };
@@ -220,44 +231,65 @@ export function useReadmissionAnnotation({
 
   const caseNotes: CaseNotes | null = useMemo(() => {
     if (!activeCase) return null;
+    const notes = caseNotesFromReadmissionCase(activeCase);
     return {
-      indexRawNote: activeCase.indexRawNote,
-      readmissionRawNote: activeCase.readmissionRawNote,
-      noteVersionHash: activeCase.noteVersionHash,
+      indexRawNote: notes.indexRawNote,
+      readmissionRawNote: notes.readmissionRawNote,
+      indexCanonicalNote: notes.indexCanonicalNote,
+      readmissionCanonicalNote: notes.readmissionCanonicalNote,
+      noteVersionHash: notes.noteVersionHash,
     };
   }, [activeCase]);
 
   const indexSections = useMemo(
-    () => (activeCase ? detectSections(activeCase.indexRawNote) : []),
-    [activeCase?.indexRawNote],
+    () => (activeCase ? sectionsForNote(activeCase, 'index_hf') : []),
+    [activeCase],
   );
   const readmissionSections = useMemo(
-    () => (activeCase ? detectSections(activeCase.readmissionRawNote) : []),
-    [activeCase?.readmissionRawNote],
+    () => (activeCase ? sectionsForNote(activeCase, 'readmission') : []),
+    [activeCase],
+  );
+
+  const indexCanonicalNote = useMemo(
+    () => (activeCase ? canonicalNoteText(activeCase, 'index_hf') : ''),
+    [activeCase],
+  );
+  const readmissionCanonicalNote = useMemo(
+    () => (activeCase ? canonicalNoteText(activeCase, 'readmission') : ''),
+    [activeCase],
+  );
+
+  const indexSectionMeta = useCallback(
+    (charIndex: number) => sectionMetaAtChar(activeCase!, 'index_hf', charIndex),
+    [activeCase],
+  );
+  const readmissionSectionMeta = useCallback(
+    (charIndex: number) => sectionMetaAtChar(activeCase!, 'readmission', charIndex),
+    [activeCase],
   );
 
   const indexSegments = useMemo(
     () =>
       activeCase && annotation
         ? buildNoteSegments(
-            activeCase.indexRawNote,
+            indexCanonicalNote,
             indexSections,
             spansForNote(annotation.evidenceSpans, 'index_hf'),
           )
         : [],
-    [activeCase, annotation, indexSections],
+    [activeCase, annotation, indexCanonicalNote, indexSections],
   );
 
   const readmissionSegments = useMemo(
     () =>
       activeCase && annotation
         ? buildNoteSegments(
-            activeCase.readmissionRawNote,
+            readmissionCanonicalNote,
             readmissionSections,
             spansForNote(annotation.evidenceSpans, 'readmission'),
           )
         : [],
-    [activeCase, annotation, readmissionSections],
+    [activeCase, annotation, readmissionCanonicalNote, readmissionSections],
   );
 
   const groupById = useMemo(() => {
@@ -330,6 +362,7 @@ export function useReadmissionAnnotation({
       updatedAt: new Date().toISOString(),
       noteVersions: activeCase.noteVersions,
       caseMetadata: caseMetadataFromCase(activeCase),
+      ...annotationSectionEnvelopeFromCase(activeCase),
     };
   }, [activeCase, annotation]);
 
@@ -543,7 +576,7 @@ export function useReadmissionAnnotation({
       return;
     }
 
-    const { noteType, startChar, endChar, selectedText, sectionTitle } = sel;
+    const { noteType, startChar, endChar, selectedText, sectionTitle, sectionId } = sel;
     const sameNoteSpans = spansForNote(annotation.evidenceSpans, noteType);
 
     const overlap = findOverlappingOtherGroupSpan(
@@ -579,6 +612,7 @@ export function useReadmissionAnnotation({
       groupId,
       factorId: null,
       sectionTitle,
+      sectionId: sectionId ?? null,
       startChar,
       endChar,
       selectedText,
@@ -751,6 +785,7 @@ export function useReadmissionAnnotation({
         updatedAt: new Date().toISOString(),
         noteVersions: activeCase.noteVersions,
         caseMetadata: caseMetadataFromCase(activeCase),
+        ...annotationSectionEnvelopeFromCase(activeCase),
       };
 
       try {
@@ -803,10 +838,13 @@ export function useReadmissionAnnotation({
 
   const exportJson = useCallback(() => {
     if (!annotation || !activeCase) return;
-    downloadAnnotationJson({
-      ...annotation,
-      caseMetadata: caseMetadataFromCase(activeCase),
-    });
+    downloadAnnotationJson(
+      {
+        ...annotation,
+        caseMetadata: caseMetadataFromCase(activeCase),
+      },
+      { noteCanonical: activeCase.noteCanonicalVersion },
+    );
     showToast('JSON exported.', 'success');
   }, [activeCase, annotation, showToast]);
 
@@ -884,16 +922,22 @@ export function useReadmissionAnnotation({
     indexNote: {
       noteType: 'index_hf' as const,
       title: 'Index HF admission',
-      rawNote: activeCase.indexRawNote,
+      canonicalNote: indexCanonicalNote,
+      sectionMetaAtChar: indexSectionMeta,
       sections: indexSections,
+      storedSections: activeCase ? resolvedStoredSections(activeCase, 'index_hf') : undefined,
       segments: indexSegments,
       scrollRef: indexScrollRef,
     },
     readmissionNote: {
       noteType: 'readmission' as const,
       title: 'Readmission discharge',
-      rawNote: activeCase.readmissionRawNote,
+      canonicalNote: readmissionCanonicalNote,
+      sectionMetaAtChar: readmissionSectionMeta,
       sections: readmissionSections,
+      storedSections: activeCase
+        ? resolvedStoredSections(activeCase, 'readmission')
+        : undefined,
       segments: readmissionSegments,
       scrollRef: readmissionScrollRef,
     },

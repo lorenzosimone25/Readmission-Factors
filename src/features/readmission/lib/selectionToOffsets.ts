@@ -2,6 +2,24 @@ import { detectSections, sectionTitleAtChar } from '@/features/readmission/lib/d
 import { normalizeWs } from '@/features/readmission/lib/normalizeWs';
 import type { ClinicalNoteType, PendingSelection } from '@/features/readmission/types/readmissionAnnotation';
 
+export type SectionMetaAtChar = (charIndex: number) => {
+  sectionTitle: string | null;
+  sectionId: string | null;
+};
+
+function resolveSectionMeta(
+  canonicalNote: string,
+  charIndex: number,
+  sectionMetaAtChar?: SectionMetaAtChar,
+): { sectionTitle: string | null; sectionId: string | null } {
+  if (sectionMetaAtChar) return sectionMetaAtChar(charIndex);
+  const sections = detectSections(canonicalNote);
+  return {
+    sectionTitle: sectionTitleAtChar(sections, charIndex),
+    sectionId: null,
+  };
+}
+
 const CHAR_START = 'data-char-start';
 
 function charSpanElement(node: Node, noteRoot: HTMLElement): HTMLElement | null {
@@ -38,6 +56,37 @@ function offsetInNote(node: Node, nodeOffset: number, noteRoot: HTMLElement): nu
   }
 }
 
+/** Extract selected text from raw text nodes inside char spans (immune to CSS text-transform). */
+export function textInCharSpanRange(range: Range, noteRoot: HTMLElement): string {
+  const walker = document.createTreeWalker(noteRoot, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (!charSpanElement(node, noteRoot)) return NodeFilter.FILTER_REJECT;
+      try {
+        const nodeRange = document.createRange();
+        nodeRange.selectNodeContents(node);
+        const intersects =
+          range.compareBoundaryPoints(Range.END_TO_START, nodeRange) < 0 &&
+          range.compareBoundaryPoints(Range.START_TO_END, nodeRange) > 0;
+        return intersects ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      } catch {
+        return NodeFilter.FILTER_REJECT;
+      }
+    },
+  });
+
+  let out = '';
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    const textNode = node as Text;
+    let start = 0;
+    let end = textNode.length;
+    if (textNode === range.startContainer) start = range.startOffset;
+    if (textNode === range.endContainer) end = range.endOffset;
+    if (start < end) out += textNode.data.slice(start, end);
+  }
+  return out;
+}
+
 export type SelectionMappingResult =
   | { ok: true; selection: PendingSelection & { mappingError: null } }
   | { ok: false; selection: PendingSelection | null; error: string };
@@ -45,8 +94,9 @@ export type SelectionMappingResult =
 export function selectionToOffsets(
   sel: Selection | null,
   noteRoot: HTMLElement | null,
-  rawNote: string,
+  canonicalNote: string,
   noteType: ClinicalNoteType,
+  sectionMetaAtChar?: SectionMetaAtChar,
 ): SelectionMappingResult {
   if (!sel || !noteRoot || sel.isCollapsed || sel.rangeCount === 0) {
     return { ok: false, selection: null, error: '' };
@@ -75,10 +125,9 @@ export function selectionToOffsets(
     return { ok: false, selection: null, error: '' };
   }
 
-  const selectedText = rawNote.slice(lo, hi);
-  const browserText = sel.toString();
-  const sections = detectSections(rawNote);
-  const sectionTitle = sectionTitleAtChar(sections, lo);
+  const selectedText = canonicalNote.slice(lo, hi);
+  const browserText = textInCharSpanRange(range, noteRoot);
+  const { sectionTitle, sectionId } = resolveSectionMeta(canonicalNote, lo, sectionMetaAtChar);
 
   if (normalizeWs(browserText) !== normalizeWs(selectedText)) {
     const partial: PendingSelection = {
@@ -87,6 +136,7 @@ export function selectionToOffsets(
       endChar: hi,
       selectedText,
       sectionTitle,
+      sectionId,
       mappingError:
         'Could not map selection to exact note offsets. Try selecting text within a single paragraph.',
     };
@@ -101,6 +151,7 @@ export function selectionToOffsets(
       endChar: hi,
       selectedText,
       sectionTitle,
+      sectionId,
       mappingError: null,
     },
   };

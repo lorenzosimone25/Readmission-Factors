@@ -13,6 +13,8 @@ export type FactorConfidence = 1 | 2 | 3 | 4 | 5;
 
 export type ClinicalNoteType = 'index_hf' | 'readmission';
 
+export type NoteCanonicalVersion = 'raw_v0' | 'formatted_v1';
+
 export type AnnotationStatus = 'not_started' | 'draft' | 'submitted';
 
 export type EvidenceGroupColor = 'amber' | 'blue' | 'green' | 'violet' | 'slate';
@@ -45,6 +47,8 @@ export type EvidenceSpan = {
   groupId: string;
   factorId: string | null;
   sectionTitle: string | null;
+  /** Stable section id when note sections come from polish pipeline. */
+  sectionId?: string | null;
   startChar: number;
   endChar: number;
   selectedText: string;
@@ -56,12 +60,18 @@ export type CaseNoteVersions = {
   readmission: string;
 };
 
+export type SectionMetaSource = 'stored' | 'detected' | 'unknown';
+
 export type ClinicianReadmissionAnnotation = {
   caseId: string;
   caseMetadata?: ReadmissionCaseMetadata;
   reviewerId: string;
   noteVersionHash: string;
   noteVersions?: CaseNoteVersions;
+  /** Copy of case note_enrichment_version at save/submit time. */
+  noteEnrichmentVersion?: string;
+  /** Whether section titles came from stored case sections or client detection. */
+  sectionMetaSource?: SectionMetaSource;
   createdAt: string;
   updatedAt: string;
   status: AnnotationStatus;
@@ -83,6 +93,7 @@ export type PendingSelection = {
   endChar: number;
   selectedText: string;
   sectionTitle: string | null;
+  sectionId?: string | null;
   mappingError: string | null;
 } | null;
 
@@ -130,11 +141,28 @@ export type ReadmissionCaseMetadata = {
   readmitHasIcu?: boolean;
 };
 
+export type StoredNoteSection = {
+  id: string;
+  title: string;
+  startChar: number;
+  endChar: number;
+};
+
 export type ReadmissionCase = ReadmissionCaseMetadata & {
   caseId: string;
   reviewerId: string;
+  /** Immutable source text (audit). */
   indexRawNote: string;
   readmissionRawNote: string;
+  /** Ollama-formatted text; used for display and offsets when noteCanonicalVersion is formatted_v1. */
+  indexFormattedNote?: string;
+  readmissionFormattedNote?: string;
+  indexNoteSections?: StoredNoteSection[];
+  readmissionNoteSections?: StoredNoteSection[];
+  noteCanonicalVersion: NoteCanonicalVersion;
+  noteFormattingMeta?: Record<string, unknown>;
+  /** Bumps when section enrichment changes; does not affect noteVersionHash. */
+  noteEnrichmentVersion?: string;
   noteVersionHash: string;
   noteVersions: CaseNoteVersions;
 };

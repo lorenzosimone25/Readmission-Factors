@@ -6,7 +6,7 @@ import {
   type PointerEvent,
   type ReactNode,
 } from 'react';
-import { Columns2, GripVertical, PanelLeft, PanelRight } from 'lucide-react';
+import { Columns2, ChevronLeft, ChevronRight, GripVertical, PanelLeft, PanelRight } from 'lucide-react';
 
 import {
   clampIndexPercent,
@@ -194,7 +194,8 @@ export function NoteSplitLayout({ layout, onLayoutChange, indexPane, readmission
           aria-valuemax={NOTE_PANE_MAX_PERCENT}
           aria-valuenow={Math.round(indexPercent)}
           tabIndex={0}
-          className="mx-0.5 flex w-2 shrink-0 cursor-col-resize touch-none items-center justify-center rounded-sm"
+          title="Drag to resize notes"
+          className="group mx-0.5 flex w-3 shrink-0 cursor-col-resize touch-none flex-col items-center justify-center gap-0.5 rounded-sm px-0.5 transition-colors hover:bg-[var(--color-panel-solid)]"
           style={{
             background: 'var(--color-panel-alt)',
             borderLeft: '1px solid var(--color-border)',
@@ -203,8 +204,18 @@ export function NoteSplitLayout({ layout, onLayoutChange, indexPane, readmission
           onPointerDown={onSeparatorPointerDown}
           onKeyDown={onSeparatorKeyDown}
         >
+          <ChevronLeft
+            className="h-3 w-3 opacity-40 transition-opacity group-hover:opacity-70"
+            style={{ color: 'var(--color-text-tertiary)' }}
+            aria-hidden
+          />
           <GripVertical
-            className="h-4 w-4 opacity-50"
+            className="h-4 w-4 opacity-50 transition-opacity group-hover:opacity-90"
+            style={{ color: 'var(--color-text-tertiary)' }}
+            aria-hidden
+          />
+          <ChevronRight
+            className="h-3 w-3 opacity-40 transition-opacity group-hover:opacity-70"
             style={{ color: 'var(--color-text-tertiary)' }}
             aria-hidden
           />

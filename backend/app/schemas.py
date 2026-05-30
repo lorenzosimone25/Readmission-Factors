@@ -48,6 +48,17 @@ class ReadmissionCaseOut(CaseMetadataOut):
     reviewer_id: str = Field(serialization_alias="reviewerId")
     index_raw_note: str = Field(serialization_alias="indexRawNote")
     readmission_raw_note: str = Field(serialization_alias="readmissionRawNote")
+    index_formatted_note: str | None = Field(default=None, serialization_alias="indexFormattedNote")
+    readmission_formatted_note: str | None = Field(
+        default=None, serialization_alias="readmissionFormattedNote"
+    )
+    index_note_sections: list[dict] = Field(default_factory=list, serialization_alias="indexNoteSections")
+    readmission_note_sections: list[dict] = Field(
+        default_factory=list, serialization_alias="readmissionNoteSections"
+    )
+    note_canonical_version: str = Field(default="raw_v0", serialization_alias="noteCanonicalVersion")
+    note_formatting_meta: dict = Field(default_factory=dict, serialization_alias="noteFormattingMeta")
+    note_enrichment_version: str = Field(default="", serialization_alias="noteEnrichmentVersion")
     note_version_hash: str = Field(serialization_alias="noteVersionHash")
     note_versions: dict[str, str] = Field(serialization_alias="noteVersions")
 

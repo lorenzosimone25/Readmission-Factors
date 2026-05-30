@@ -10,6 +10,8 @@ import { loadDraftRawFromStorage } from '@/features/readmission/lib/annotationSt
 export type CaseQueueItem = ReadmissionCaseMetadata & {
   annotationStatus: AnnotationStatus;
   estimatedTasks: number;
+  /** Combined index + readmit note length at ~200 wpm clinical reading pace. */
+  estimatedReadingMinutes?: number;
   pendingSync?: boolean;
 };
 
@@ -82,6 +84,7 @@ export function annotationStatusFromDraft(
 export function buildQueueItem(
   metadata: ReadmissionCaseMetadata,
   _noteVersionHash?: string,
+  totalNoteChars?: number,
 ): CaseQueueItem {
   const draft = loadDraftRawFromStorage(metadata.rowId, REVIEWER_ID);
   const status = annotationStatusFromDraft(draft);
@@ -89,6 +92,8 @@ export function buildQueueItem(
     ...metadata,
     annotationStatus: status,
     estimatedTasks: estimateRemainingTasks(draft),
+    estimatedReadingMinutes:
+      totalNoteChars !== undefined ? estimateReadingMinutes(totalNoteChars) : undefined,
   };
 }
 
@@ -138,3 +143,9 @@ export function sortQueueItems(
 }
 
 export const DEFAULT_REVIEWER_ID = REVIEWER_ID;
+
+/** ~200 wpm at ~6 chars/word for clinical discharge summaries. */
+export function estimateReadingMinutes(totalChars: number): number {
+  if (totalChars <= 0) return 1;
+  return Math.max(1, Math.ceil(totalChars / 1200));
+}

@@ -38,11 +38,9 @@ export function NoteSegmentSpan({ seg, noteType, groupById, factorById, onHighli
 
   const headingStyle = seg.isHeadingLine
     ? {
-        color: 'var(--color-text-tertiary)',
-        fontSize: '0.7rem',
+        color: 'var(--color-text-secondary)',
+        fontSize: '0.8125rem',
         fontWeight: 600,
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase' as const,
       }
     : undefined;
 

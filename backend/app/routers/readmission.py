@@ -54,12 +54,24 @@ def get_case(
     if case is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
     versions = compute_case_note_versions(case.index_discharge_summary, case.readmit_discharge_summary)
+    enrichment_version = case.note_enrichment_version or (
+        case.note_formatting_meta.get("prompt_version")
+        if isinstance(case.note_formatting_meta, dict)
+        else None
+    ) or ""
     return ReadmissionCaseOut(
         **case_to_metadata(case),
         case_id=case.row_id,
         reviewer_id=str(user.id),
         index_raw_note=case.index_discharge_summary,
         readmission_raw_note=case.readmit_discharge_summary,
+        index_formatted_note=case.index_discharge_summary_formatted or None,
+        readmission_formatted_note=case.readmit_discharge_summary_formatted or None,
+        index_note_sections=case.index_note_sections or [],
+        readmission_note_sections=case.readmit_note_sections or [],
+        note_canonical_version=case.note_canonical_version or "raw_v0",
+        note_formatting_meta=case.note_formatting_meta or {},
+        note_enrichment_version=enrichment_version,
         note_version_hash=case.note_version_hash,
         note_versions=versions,
     )

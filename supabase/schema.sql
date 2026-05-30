@@ -27,6 +27,14 @@ create table if not exists public.cases (
   readmit_has_icu boolean,
   index_discharge_summary text not null default '',
   readmit_discharge_summary text not null default '',
+  index_discharge_summary_formatted text not null default '',
+  readmit_discharge_summary_formatted text not null default '',
+  index_note_sections jsonb not null default '[]'::jsonb,
+  readmit_note_sections jsonb not null default '[]'::jsonb,
+  note_formatting_meta jsonb not null default '{}'::jsonb,
+  note_canonical_version text not null default 'raw_v0'
+    check (note_canonical_version in ('raw_v0', 'formatted_v1')),
+  note_enrichment_version text not null default '',
   note_version_hash text not null default ''
 );
 

@@ -26,6 +26,7 @@ function sampleCase(rowId: string): ReadmissionCase {
     reviewerId: 'user-1',
     indexRawNote: 'Index note text',
     readmissionRawNote: 'Readmit note text',
+    noteCanonicalVersion: 'raw_v0',
     noteVersionHash: 'hash-1',
     noteVersions: { index: 'h1', readmission: 'h2' },
   };

@@ -51,6 +51,7 @@ export const MOCK_READMISSION_CASES: ReadmissionCase[] = [
     reviewerId: DEFAULT_REVIEWER_ID,
     indexRawNote: MOCK_INDEX_HF_NOTE,
     readmissionRawNote: MOCK_READMISSION_NOTE,
+    noteCanonicalVersion: 'raw_v0',
     noteVersionHash,
     noteVersions,
   },

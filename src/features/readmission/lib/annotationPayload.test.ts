@@ -145,6 +145,8 @@ describe('prepareAnnotationForExport', () => {
     expect(exported.factors).toHaveLength(1);
     expect(exported.evidenceSpans).toHaveLength(1);
     expect(exported.factors[0]?.role).toBe('contributing');
+    expect(exported.factorSectionSummary).toHaveLength(1);
+    expect(exported.factorSectionSummary?.[0]?.sectionTitles).toContain('HPI');
   });
 });
 

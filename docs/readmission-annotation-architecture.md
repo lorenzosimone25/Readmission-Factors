@@ -1,14 +1,22 @@
 # Readmission annotation — technical architecture
 
-## 1. Raw-note immutability
+## 1. Raw notes and section metadata
 
-The canonical readmission discharge note is stored as a single immutable string on each mock case (`ReadmissionCase.rawNote`). It is never passed through `setState` mutators or string transformation pipelines (no summarization, paraphrase, reorder, or trim for display).
+Each case stores **immutable raw** discharge summaries (`indexRawNote` / `readmissionRawNote`). The polish pipeline (`notebooks/polish_notes.ipynb`) **does not rewrite** this text.
 
-All UI rendering uses exact slices: `rawNote.slice(startChar, endChar)`. Evidence spans persist `startChar`, `endChar`, and `selectedText` where `selectedText` must equal that slice. A `noteVersionHash` (FNV-1a in mock fixtures; SHA-256 when `crypto.subtle` is available) is stored on the annotation and validated at submit time.
+**Offsets for highlighting** always use the raw string. `note_version_hash` is computed from the raw pair and is unchanged by section labeling.
+
+**Section labels** are stored in `index_note_sections` / `readmit_note_sections` as JSON: `{ id, title, startChar, endChar }` with offsets into the **raw** note. Used for `EvidenceSpan.sectionTitle` and `sectionId` at highlight time and in exports.
+
+**Enrichment revision:** `note_enrichment_version` (e.g. `sections-rules-v1`) bumps when section JSON changes. It does **not** change `note_version_hash` or invalidate in-progress annotations. Opening a case online refreshes cached case rows when enrichment version changes.
+
+**Full cohort artifact:** `src/data/readmit_30d_sections.parquet` (from `export_sections_parquet.py`) stores section JSON for every parquet row for research/QA; Supabase assigned cases are updated by `polish_notes.ipynb`.
 
 ## 2. Section detection
 
-Sections are detected with a line-start regex over a controlled list of clinical headings (Chief Complaint, HPI, PMH, etc.) in `detectSections.ts`. Each match yields:
+When the polish pipeline has run, section boundaries come from stored JSON (`sections-rules-v1`). The batch uses a **rules-first engine** driven by `section_lexicon.json` (inline MIMIC-style headings, alias normalization, metadata denylist). No LLM is required for section labeling.
+
+The frontend fallback (`detectSections.ts`) mirrors the same lexicon when stored sections are absent. Each section has:
 
 - `sectionTitle` — captured heading text as it appears in the note
 - `startChar` / `endChar` — indices into the full raw note
@@ -16,9 +24,15 @@ Sections are detected with a line-start regex over a controlled list of clinical
 
 Content before the first heading is exposed as a **Preamble** section. Section boundaries are used only for navigation and metadata; they do not alter the canonical string.
 
-Future Ollama/API assistance may propose boundaries only as `{ startChar, endChar }` pairs validated against `rawNote`, never as rewritten note text.
+Run `notebooks/inspect_note_headings.ipynb` to mine heading frequencies from the cohort and tune `section_lexicon.json` before batch labeling.
 
-## 3. Text selection → character offsets
+**Magic Beta (UI-only):** A sparkle **Beta** toggle beside the note layout controls enables a single-note section reading view. It shows a left-hand section TOC, bold section headers, and separated blocks — all rendered from the same `NoteDocument` segment spans (raw char offsets unchanged). Available only in index-only or readmission-only layout (disabled in split view). Preference persists in `localStorage` (`readmission:magic-beta-v1`). When stored sections are missing, the UI falls back to client `detectSections()` via `resolvedStoredSections()`.
+
+## 3. Annotation section metadata
+
+Each `EvidenceSpan` stores `sectionTitle` and optional `sectionId` (snapshot at highlight time). On save/submit, annotations also store optional `noteEnrichmentVersion` and `sectionMetaSource` (`stored` | `detected`). Export JSON adds `factorSectionSummary` (unique sections touched per finalized factor). Missing `sectionId` values are backfilled from stored case sections on load when possible.
+
+## 4. Text selection → character offsets
 
 The note is rendered via **interval segmentation** (`buildNoteSegments.ts`): boundaries include note edges, section edges, and all evidence span edges. Each atomic interval is rendered as one `<span>` or `<mark>` with `data-char-start` and `data-char-end`.
 
@@ -30,7 +44,7 @@ When the clinician selects text, `selectionToOffsets.ts` (wrapped by `noteHighli
 
 Evidence spans are stored only after successful validation.
 
-## 4. Factor-first workflow (single panel)
+## 5. Factor-first workflow (single panel)
 
 - New cases start with **Factor 1** (amber) active; clinicians **add** more factors via `addEvidenceGroup` with auto-assigned colors (`evidenceGroupPalette.ts`).
 - Select an active factor, highlight passages in the note (`groupId` on spans; `factorId: null` until complete).
@@ -41,7 +55,7 @@ Evidence spans are stored only after successful validation.
 ### Flat note rendering
 
 - The note body renders as one continuous `.note-root` stream (`NoteDocument` + `NoteSegmentSpan`) — no per-section UI and no Sections sidebar. `buildNoteSegments` does **not** split on section boundaries (only note edges + highlight edges).
-- `detectSections` is used only for `EvidenceSpan.sectionTitle` metadata at highlight time, not for layout.
+- `sectionsForNote` / `detectSections` supply `EvidenceSpan.sectionTitle` and optional `sectionId` at highlight time, not for layout.
 - **Floating toolbar only** — `FloatingSelectionToolbar` near the selection calls `addHighlightToActiveGroup` (no in-header preview panel; stable note header).
 
 ```mermaid
@@ -52,7 +66,7 @@ flowchart LR
   spans --> factors
 ```
 
-## 5. Libraries chosen (and not chosen)
+## 6. Libraries chosen (and not chosen)
 
 | Library | Decision |
 |--------|----------|
@@ -61,7 +75,7 @@ flowchart LR
 | **Custom renderer** | Interval segments, `data-char-*`, `<mark>` colored by `EvidenceGroup.color`. |
 | **noteHighlighter.ts** | Thin wrapper over `selectionToOffsets` for future library swap without changing export schema. |
 
-## 6. UX stability
+## 7. UX stability
 
 - **Floating toolbar** — `FloatingSelectionToolbar` shows “Highlight as [group]” at the selection; active factor chip shows a pulse when selection is ready.
 - **Error boundary** — `ReadmissionErrorBoundary` wraps the tab; reload instead of white screen.
@@ -73,7 +87,7 @@ flowchart LR
 - **Per-group colors** — `groupColors.ts` maps `EvidenceGroupColor` → soft highlight backgrounds.
 - **Overlap policy** — highlights cannot overlap spans in a **different** group (`findOverlappingOtherGroupSpan`).
 
-## 7. Validation
+## 8. Validation
 
 **Draft:** permissive — highlights-only allowed.
 
@@ -84,19 +98,19 @@ flowchart LR
 - Offset/text/hash checks on every span
 - Warnings for incomplete factors (highlights present but not completed)
 
-## 8. API boundary (stub)
+## 9. API boundary (stub)
 
 `readmissionApi.ts` exposes `loadCase`, `loadAnnotation`, `saveAnnotation`, `submitAnnotation` — mock + `localStorage` until backend exists. Export contract documented in `exportAnnotationSchema.ts`.
 
-## 9. Limitations before backend integration
+## 10. Limitations before backend integration
 
 - Mock cases only; single case in milestone.
 - No server persistence, auth, or multi-reviewer adjudication.
-- Section detection is regex-only.
+- Section labels from polish or regex; stored sections preferred over client regex when present.
 - No merge/split groups in v1.
 - `noteVersionHash` computed client-side in fixtures.
 
-## 10. Troubleshooting highlights
+## 11. Troubleshooting highlights
 
 **White screen** — check the browser console; reload via the error boundary. Common causes: invalid nested buttons (fixed in factor cards), or `activeGroupId` pointing at a deleted group (guarded by `resolveActiveGroupId`).
 

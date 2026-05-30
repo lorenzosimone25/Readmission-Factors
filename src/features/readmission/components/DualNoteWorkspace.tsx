@@ -1,4 +1,5 @@
 import { useEffect, useState, type RefObject } from 'react';
+import { Sparkles } from 'lucide-react';
 
 import { GroupColorBar } from '@/features/readmission/components/GroupColorBar';
 import {
@@ -7,10 +8,15 @@ import {
 } from '@/features/readmission/components/NoteSplitLayout';
 import { NoteViewer } from '@/features/readmission/components/NoteViewer';
 import {
+  loadMagicBetaEnabled,
+  saveMagicBetaEnabled,
+} from '@/features/readmission/lib/magicBeta';
+import {
   loadNotePaneLayout,
   saveNotePaneLayout,
   type NotePaneLayout,
 } from '@/features/readmission/lib/notePaneLayout';
+import type { SectionMetaAtChar } from '@/features/readmission/lib/selectionToOffsets';
 import type {
   ClinicalNoteType,
   EvidenceGroup,
@@ -19,13 +25,16 @@ import type {
   NoteSegment,
   PendingSelection,
   ReadmissionFactor,
+  StoredNoteSection,
 } from '@/features/readmission/types/readmissionAnnotation';
 
 type NotePaneProps = {
   noteType: ClinicalNoteType;
   title: string;
-  rawNote: string;
+  canonicalNote: string;
+  sectionMetaAtChar?: SectionMetaAtChar;
   segments: NoteSegment[];
+  storedSections?: StoredNoteSection[];
 };
 
 type Props = {
@@ -48,6 +57,8 @@ type Props = {
   onAddHighlight: () => void;
 };
 
+const magicBetaBtnClass = 'rounded-md border px-2 py-1 text-[11px] transition-colors disabled:opacity-40';
+
 export function DualNoteWorkspace({
   indexNote,
   readmissionNote,
@@ -68,21 +79,33 @@ export function DualNoteWorkspace({
   onAddHighlight,
 }: Props) {
   const [paneLayout, setPaneLayout] = useState<NotePaneLayout>(loadNotePaneLayout);
+  const [magicBetaEnabled, setMagicBetaEnabled] = useState(() => loadMagicBetaEnabled());
+  const magicBetaAvailable = paneLayout.mode !== 'split';
 
   useEffect(() => {
     saveNotePaneLayout(paneLayout);
   }, [paneLayout]);
 
+  useEffect(() => {
+    saveMagicBetaEnabled(magicBetaEnabled);
+  }, [magicBetaEnabled]);
+
   const selectionReady = Boolean(
     activeGroup && pendingSelection && !pendingSelection.mappingError,
   );
+
+  const indexMagicBeta = magicBetaEnabled && paneLayout.mode === 'index';
+  const readmissionMagicBeta = magicBetaEnabled && paneLayout.mode === 'readmission';
 
   const indexPane = (
     <NoteViewer
       noteType="index_hf"
       title={indexNote.title}
-      rawNote={indexNote.rawNote}
+      canonicalNote={indexNote.canonicalNote}
+      sectionMetaAtChar={indexNote.sectionMetaAtChar}
       segments={indexNote.segments}
+      storedSections={indexNote.storedSections}
+      magicBetaEnabled={indexMagicBeta}
       groupById={groupById}
       factorById={factorById}
       pendingSelection={pendingSelection}
@@ -99,8 +122,11 @@ export function DualNoteWorkspace({
     <NoteViewer
       noteType="readmission"
       title={readmissionNote.title}
-      rawNote={readmissionNote.rawNote}
+      canonicalNote={readmissionNote.canonicalNote}
+      sectionMetaAtChar={readmissionNote.sectionMetaAtChar}
       segments={readmissionNote.segments}
+      storedSections={readmissionNote.storedSections}
+      magicBetaEnabled={readmissionMagicBeta}
       groupById={groupById}
       factorById={factorById}
       pendingSelection={pendingSelection}
@@ -113,6 +139,17 @@ export function DualNoteWorkspace({
     />
   );
 
+  const magicBetaActiveStyle = {
+    borderColor: 'var(--color-border-strong)',
+    background: 'var(--color-panel-solid)',
+    color: 'var(--color-text-primary)',
+  };
+  const magicBetaIdleStyle = {
+    borderColor: 'var(--color-border)',
+    background: 'transparent',
+    color: 'var(--color-text-secondary)',
+  };
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div
@@ -124,7 +161,26 @@ export function DualNoteWorkspace({
             Select a factor, then highlight text in either note. Click a highlight to delete that
             factor.
           </p>
-          <NotePaneLayoutControls layout={paneLayout} onLayoutChange={setPaneLayout} />
+          <div className="flex shrink-0 items-center gap-1">
+            <NotePaneLayoutControls layout={paneLayout} onLayoutChange={setPaneLayout} />
+            <button
+              type="button"
+              className={`${magicBetaBtnClass} inline-flex items-center gap-1`}
+              style={magicBetaEnabled && magicBetaAvailable ? magicBetaActiveStyle : magicBetaIdleStyle}
+              title={
+                magicBetaAvailable
+                  ? 'Magic Beta section reading view'
+                  : 'Magic Beta is available in single-note view'
+              }
+              aria-label="Magic Beta section reading view"
+              aria-pressed={magicBetaEnabled && magicBetaAvailable}
+              disabled={!magicBetaAvailable}
+              onClick={() => setMagicBetaEnabled((enabled) => !enabled)}
+            >
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              Beta
+            </button>
+          </div>
         </div>
         <div className="mt-2">
           <GroupColorBar

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, type RefObject } from 'react';
 
 import { FloatingSelectionToolbar } from '@/features/readmission/components/FloatingSelectionToolbar';
+import { MagicBetaSectionView } from '@/features/readmission/components/MagicBetaSectionView';
 import { NoteDocument } from '@/features/readmission/components/NoteDocument';
-import { selectionToOffsets } from '@/features/readmission/lib/selectionToOffsets';
+import { selectionToOffsets, type SectionMetaAtChar } from '@/features/readmission/lib/selectionToOffsets';
 import type {
   ClinicalNoteType,
   EvidenceGroup,
@@ -10,13 +11,17 @@ import type {
   NoteSegment,
   PendingSelection,
   ReadmissionFactor,
+  StoredNoteSection,
 } from '@/features/readmission/types/readmissionAnnotation';
 
 type Props = {
   noteType: ClinicalNoteType;
   title: string;
-  rawNote: string;
+  canonicalNote: string;
+  sectionMetaAtChar?: SectionMetaAtChar;
   segments: NoteSegment[];
+  storedSections?: StoredNoteSection[];
+  magicBetaEnabled?: boolean;
   groupById: Map<string, EvidenceGroup>;
   factorById: Map<string, ReadmissionFactor>;
   pendingSelection: PendingSelection;
@@ -41,8 +46,11 @@ function selectionInRoot(sel: Selection, root: HTMLElement | null): boolean {
 export function NoteViewer({
   noteType,
   title,
-  rawNote,
+  canonicalNote,
+  sectionMetaAtChar,
   segments,
+  storedSections,
+  magicBetaEnabled = false,
   groupById,
   factorById,
   pendingSelection,
@@ -64,7 +72,7 @@ export function NoteViewer({
 
     if (!selectionInRoot(sel, root)) return;
 
-    const result = selectionToOffsets(sel, root, rawNote, noteType);
+    const result = selectionToOffsets(sel, root, canonicalNote, noteType, sectionMetaAtChar);
 
     if (result.selection) {
       setPendingSelectionSafe(result.selection);
@@ -82,7 +90,8 @@ export function NoteViewer({
     noteType,
     noteScrollRef,
     pendingSelection,
-    rawNote,
+    canonicalNote,
+    sectionMetaAtChar,
     setPendingSelectionSafe,
   ]);
 
@@ -105,6 +114,9 @@ export function NoteViewer({
   const selectionInThisNote =
     pendingSelection?.noteType === noteType && !pendingSelection.mappingError;
   const canHighlight = Boolean(activeGroup && selectionInThisNote);
+  const sectionCount = storedSections?.length ?? 0;
+  const useMagicBeta = magicBetaEnabled && sectionCount > 1;
+  const showMagicBetaUnavailableHint = magicBetaEnabled && sectionCount <= 1;
 
   return (
     <div className="flex h-full min-h-0 flex-col rounded-lg border" style={{ borderColor: 'var(--color-border)' }}>
@@ -115,6 +127,11 @@ export function NoteViewer({
         <h2 className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
           {title}
         </h2>
+        {showMagicBetaUnavailableHint ? (
+          <p className="mt-2 text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
+            Section labels not available — turn off Beta or re-run section labeling
+          </p>
+        ) : null}
         {pendingSelection?.noteType === noteType && pendingSelection.mappingError ? (
           <div
             className="mt-2 rounded-md border px-2 py-1.5 text-[11px]"
@@ -146,13 +163,26 @@ export function NoteViewer({
           }}
           role="document"
         >
-          <NoteDocument
-            segments={segments}
-            noteType={noteType}
-            groupById={groupById}
-            factorById={factorById}
-            onHighlightClick={onHighlightClick}
-          />
+          {useMagicBeta ? (
+            <MagicBetaSectionView
+              sections={storedSections!}
+              segments={segments}
+              canonicalNote={canonicalNote}
+              noteType={noteType}
+              scrollRootRef={noteScrollRef}
+              groupById={groupById}
+              factorById={factorById}
+              onHighlightClick={onHighlightClick}
+            />
+          ) : (
+            <NoteDocument
+              segments={segments}
+              noteType={noteType}
+              groupById={groupById}
+              factorById={factorById}
+              onHighlightClick={onHighlightClick}
+            />
+          )}
         </div>
       </div>
 
