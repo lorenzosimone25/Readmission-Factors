@@ -636,6 +636,7 @@ export function useReadmissionAnnotation({
       if (group.finalizedFactorId) {
         updateAnnotation((prev) => updateFinalizedFactorInAnnotation(prev, groupId, patch));
         clearFactorFormDraft(groupId);
+        setExpandedGroupId(null);
         showToast(`"${patch.label || group.label}" updated.`, 'success');
         return;
       }
@@ -648,6 +649,7 @@ export function useReadmissionAnnotation({
 
       updateAnnotation((prev) => finalizeGroupInAnnotation(prev, groupId, patch));
       clearFactorFormDraft(groupId);
+      setExpandedGroupId(null);
       showToast(`"${patch.label || 'Factor'}" completed.`, 'success');
     },
     [

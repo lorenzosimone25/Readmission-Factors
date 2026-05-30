@@ -1,7 +1,16 @@
-import type { RefObject } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 
 import { GroupColorBar } from '@/features/readmission/components/GroupColorBar';
+import {
+  NotePaneLayoutControls,
+  NoteSplitLayout,
+} from '@/features/readmission/components/NoteSplitLayout';
 import { NoteViewer } from '@/features/readmission/components/NoteViewer';
+import {
+  loadNotePaneLayout,
+  saveNotePaneLayout,
+  type NotePaneLayout,
+} from '@/features/readmission/lib/notePaneLayout';
 import type {
   ClinicalNoteType,
   EvidenceGroup,
@@ -58,8 +67,50 @@ export function DualNoteWorkspace({
   onHighlightClick,
   onAddHighlight,
 }: Props) {
+  const [paneLayout, setPaneLayout] = useState<NotePaneLayout>(loadNotePaneLayout);
+
+  useEffect(() => {
+    saveNotePaneLayout(paneLayout);
+  }, [paneLayout]);
+
   const selectionReady = Boolean(
     activeGroup && pendingSelection && !pendingSelection.mappingError,
+  );
+
+  const indexPane = (
+    <NoteViewer
+      noteType="index_hf"
+      title={indexNote.title}
+      rawNote={indexNote.rawNote}
+      segments={indexNote.segments}
+      groupById={groupById}
+      factorById={factorById}
+      pendingSelection={pendingSelection}
+      setPendingSelectionSafe={setPendingSelectionSafe}
+      clearPendingSelection={clearPendingSelection}
+      activeGroup={activeGroup}
+      noteScrollRef={indexScrollRef}
+      onHighlightClick={onHighlightClick}
+      onAddHighlight={onAddHighlight}
+    />
+  );
+
+  const readmissionPane = (
+    <NoteViewer
+      noteType="readmission"
+      title={readmissionNote.title}
+      rawNote={readmissionNote.rawNote}
+      segments={readmissionNote.segments}
+      groupById={groupById}
+      factorById={factorById}
+      pendingSelection={pendingSelection}
+      setPendingSelectionSafe={setPendingSelectionSafe}
+      clearPendingSelection={clearPendingSelection}
+      activeGroup={activeGroup}
+      noteScrollRef={readmissionScrollRef}
+      onHighlightClick={onHighlightClick}
+      onAddHighlight={onAddHighlight}
+    />
   );
 
   return (
@@ -68,9 +119,13 @@ export function DualNoteWorkspace({
         className="shrink-0 border-b px-3 py-2"
         style={{ borderColor: 'var(--color-border)', background: 'var(--color-panel-alt)' }}
       >
-        <p className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
-          Select a factor, then highlight text in either note. Click a highlight to delete that factor.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <p className="min-w-0 flex-1 text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
+            Select a factor, then highlight text in either note. Click a highlight to delete that
+            factor.
+          </p>
+          <NotePaneLayoutControls layout={paneLayout} onLayoutChange={setPaneLayout} />
+        </div>
         <div className="mt-2">
           <GroupColorBar
             groups={groups}
@@ -83,38 +138,12 @@ export function DualNoteWorkspace({
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 p-2">
-        <NoteViewer
-          noteType="index_hf"
-          title={indexNote.title}
-          rawNote={indexNote.rawNote}
-          segments={indexNote.segments}
-          groupById={groupById}
-          factorById={factorById}
-          pendingSelection={pendingSelection}
-          setPendingSelectionSafe={setPendingSelectionSafe}
-          clearPendingSelection={clearPendingSelection}
-          activeGroup={activeGroup}
-          noteScrollRef={indexScrollRef}
-          onHighlightClick={onHighlightClick}
-          onAddHighlight={onAddHighlight}
-        />
-        <NoteViewer
-          noteType="readmission"
-          title={readmissionNote.title}
-          rawNote={readmissionNote.rawNote}
-          segments={readmissionNote.segments}
-          groupById={groupById}
-          factorById={factorById}
-          pendingSelection={pendingSelection}
-          setPendingSelectionSafe={setPendingSelectionSafe}
-          clearPendingSelection={clearPendingSelection}
-          activeGroup={activeGroup}
-          noteScrollRef={readmissionScrollRef}
-          onHighlightClick={onHighlightClick}
-          onAddHighlight={onAddHighlight}
-        />
-      </div>
+      <NoteSplitLayout
+        layout={paneLayout}
+        onLayoutChange={setPaneLayout}
+        indexPane={indexPane}
+        readmissionPane={readmissionPane}
+      />
     </div>
   );
 }
