@@ -9,6 +9,8 @@
  * - sectionMetaSource?: "stored" | "detected" | "unknown"
  * - noteVersions?: { index, readmission } (per-note hashes on raw text)
  * - factorSectionSummary?: derived per-factor sectionIds/sectionTitles from finalized spans
+ * - caseClinicalSummary?: { readmissionDiagnoses, readmissionDiagnosesUncertain,
+ *     readmissionSymptoms, readmissionSymptomsUncertain, overallConfidence }
  * - evidenceGroups[]: finalized groups only { id, label, color, finalizedFactorId, note, createdAt }
  * - evidenceSpans[]: finalized spans { id, caseId, noteType, groupId, factorId, sectionTitle, sectionId?, startChar, endChar, selectedText, createdAt }
  * - factors[]: { id, label, role, confidence, note, evidenceSpanIds[] }

@@ -1,3 +1,4 @@
+import { normalizeCaseClinicalSummary } from '@/features/readmission/lib/caseClinicalSummary';
 import { normalizeFactorRole } from '@/features/readmission/lib/vocabLabels';
 import type {
   ClinicianReadmissionAnnotation,
@@ -44,6 +45,7 @@ export function normalizeAnnotation(
       ...sp,
       noteType: normalizeSpanNoteType(sp.noteType),
     })),
+    caseClinicalSummary: normalizeCaseClinicalSummary(annotation.caseClinicalSummary),
   };
 }
 

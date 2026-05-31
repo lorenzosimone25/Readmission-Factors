@@ -62,6 +62,14 @@ export type CaseNoteVersions = {
 
 export type SectionMetaSource = 'stored' | 'detected' | 'unknown';
 
+export type CaseClinicalSummary = {
+  readmissionDiagnoses: string;
+  readmissionDiagnosesUncertain: boolean;
+  readmissionSymptoms: string;
+  readmissionSymptomsUncertain: boolean;
+  overallConfidence: FactorConfidence | null;
+};
+
 export type ClinicianReadmissionAnnotation = {
   caseId: string;
   caseMetadata?: ReadmissionCaseMetadata;
@@ -78,6 +86,7 @@ export type ClinicianReadmissionAnnotation = {
   evidenceGroups: EvidenceGroup[];
   factors: ReadmissionFactor[];
   evidenceSpans: EvidenceSpan[];
+  caseClinicalSummary?: CaseClinicalSummary;
 };
 
 export type NoteSection = {

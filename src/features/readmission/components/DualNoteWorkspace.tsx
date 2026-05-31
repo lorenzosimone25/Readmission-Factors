@@ -178,7 +178,7 @@ export function DualNoteWorkspace({
               onClick={() => setMagicBetaEnabled((enabled) => !enabled)}
             >
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
-              Beta
+              Index (Beta)
             </button>
           </div>
         </div>

@@ -148,6 +148,38 @@ describe('prepareAnnotationForExport', () => {
     expect(exported.factorSectionSummary).toHaveLength(1);
     expect(exported.factorSectionSummary?.[0]?.sectionTitles).toContain('HPI');
   });
+
+  it('includes caseClinicalSummary in export', () => {
+    let ann = baseAnnotation();
+    const groupId = ann.evidenceGroups[0]!.id;
+    ann = finalizeGroupInAnnotation(
+      { ...ann, evidenceSpans: [span(groupId, 'span-1')] },
+      groupId,
+      {
+        label: 'Exported factor',
+        role: 'primary',
+        modifiability: 'uncertain',
+        foreseeableFromIndexDischarge: 'uncertain',
+        confidence: 4,
+        rationale: '',
+        note: '',
+      },
+    );
+    ann = {
+      ...ann,
+      caseClinicalSummary: {
+        readmissionDiagnoses: 'Heart failure exacerbation',
+        readmissionDiagnosesUncertain: false,
+        readmissionSymptoms: 'Dyspnea',
+        readmissionSymptomsUncertain: false,
+        overallConfidence: 4,
+      },
+    };
+
+    const exported = prepareAnnotationForExport(ann);
+    expect(exported.caseClinicalSummary?.readmissionDiagnoses).toBe('Heart failure exacerbation');
+    expect(exported.caseClinicalSummary?.overallConfidence).toBe(4);
+  });
 });
 
 describe('reopenSubmittedIfNeeded', () => {

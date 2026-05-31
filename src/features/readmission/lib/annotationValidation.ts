@@ -4,6 +4,13 @@ import {
   MAX_FACTOR_NOTE_WORDS,
 } from '@/features/readmission/lib/noteLimits';
 import { isDefaultFactorLabel } from '@/features/readmission/lib/factorLabelUtils';
+import {
+  CASE_SETUP_ERROR_MESSAGES,
+  isDiagnosesComplete,
+  isOverallConfidenceComplete,
+  isSymptomsComplete,
+  normalizeCaseClinicalSummary,
+} from '@/features/readmission/lib/caseClinicalSummary';
 import type {
   ClinicianReadmissionAnnotation,
   ClinicalNoteType,
@@ -74,6 +81,21 @@ export function validateForSubmit(
 
   if (annotation.noteVersionHash !== notes.noteVersionHash) {
     errors.push('Annotation note version hash does not match the current case notes.');
+  }
+
+  const caseSummary = normalizeCaseClinicalSummary(annotation.caseClinicalSummary);
+  if (!isDiagnosesComplete(caseSummary)) {
+    errors.push(
+      'Diagnosis set for readmission is required (enter diagnoses or select Uncertain).',
+    );
+  }
+  if (!isSymptomsComplete(caseSummary)) {
+    errors.push(
+      'Symptoms associated with readmission are required (enter symptoms or select Uncertain).',
+    );
+  }
+  if (!isOverallConfidenceComplete(caseSummary)) {
+    errors.push('Overall confidence score (1–5) is required.');
   }
 
   const factors = finalizedFactors(annotation);
@@ -154,6 +176,15 @@ export function validateForSubmit(
   }
 
   return { ok: errors.length === 0, errors, warnings };
+}
+
+const NOTE_VERSION_HASH_ERROR =
+  'Annotation note version hash does not match the current case notes.';
+
+/** True when submit validation has errors outside case setup and note-version mismatch. */
+export function hasFactorSubmitErrors(errors: string[]): boolean {
+  const nonFactor = new Set<string>([...CASE_SETUP_ERROR_MESSAGES, NOTE_VERSION_HASH_ERROR]);
+  return errors.some((message) => !nonFactor.has(message));
 }
 
 export function isValidFactorRole(role: string): role is FactorRole {

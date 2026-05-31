@@ -21,6 +21,11 @@ import {
   useReadmissionSession,
   useRegisterReadmissionSession,
 } from '@/features/readmission/context/ReadmissionSessionContext';
+import {
+  emptyCaseClinicalSummary,
+  hasCaseClinicalSummaryEdits,
+  normalizeCaseClinicalSummary,
+} from '@/features/readmission/lib/caseClinicalSummary';
 import { normalizeAnnotation } from '@/features/readmission/lib/annotationStorage';
 import {
   validateFactorPatch,
@@ -46,6 +51,7 @@ import { newId } from '@/features/readmission/lib/newId';
 import { findOverlappingOtherGroupSpan } from '@/features/readmission/lib/spanOverlap';
 import type { SpanPopoverAnchor } from '@/features/readmission/components/HighlightSpanPopover';
 import type {
+  CaseClinicalSummary,
   ClinicianReadmissionAnnotation,
   ClinicalNoteType,
   EvidenceGroupColor,
@@ -77,6 +83,7 @@ function emptyAnnotation(activeCase: ReadmissionCase): ClinicianReadmissionAnnot
     evidenceGroups: groups,
     factors: [],
     evidenceSpans: [],
+    caseClinicalSummary: emptyCaseClinicalSummary(),
   };
 }
 
@@ -149,6 +156,7 @@ export function useReadmissionAnnotation({
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
   const [wasEverSubmitted, setWasEverSubmitted] = useState(false);
   const [spanPopover, setSpanPopover] = useState<SpanPopoverAnchor | null>(null);
   const lastToastRef = useRef<{ text: string; at: number } | null>(null);
@@ -355,7 +363,8 @@ export function useReadmissionAnnotation({
     const hasEdits =
       base.evidenceSpans.length > 0 ||
       base.status !== 'not_started' ||
-      base.factors.length > 0;
+      base.factors.length > 0 ||
+      hasCaseClinicalSummaryEdits(normalizeCaseClinicalSummary(base.caseClinicalSummary));
     return {
       ...base,
       status: hasEdits ? ('draft' as const) : base.status,
@@ -655,6 +664,19 @@ export function useReadmissionAnnotation({
     [updateAnnotation],
   );
 
+  const updateCaseClinicalSummary = useCallback(
+    (patch: Partial<CaseClinicalSummary>) => {
+      updateAnnotation((prev) => ({
+        ...prev,
+        caseClinicalSummary: {
+          ...normalizeCaseClinicalSummary(prev.caseClinicalSummary),
+          ...patch,
+        },
+      }));
+    },
+    [updateAnnotation],
+  );
+
   const saveFactor = useCallback(
     (groupId: string, patch: FactorFinalizePatch) => {
       if (!annotation) return;
@@ -798,6 +820,7 @@ export function useReadmissionAnnotation({
         setSaveStatus('saved');
         setLastSavedAt(new Date().toISOString());
         setSaveError(null);
+        setSubmitReviewOpen(false);
         onQueueRefresh?.();
         if (navigator.onLine) void syncNowRef.current?.();
         const offlineQueued = hasReadmissionBackend() && !navigator.onLine;
@@ -835,6 +858,46 @@ export function useReadmissionAnnotation({
     submitValidation,
     wasEverSubmitted,
   ]);
+
+  const requestSubmitReview = useCallback(() => {
+    if (!activeCase || !annotation || submitting) return;
+
+    if (!submitValidation.ok) {
+      showToast('Fix validation errors before submitting.', 'error', submitValidation.errors);
+      return;
+    }
+
+    setSubmitReviewOpen(true);
+  }, [activeCase, annotation, showToast, submitValidation, submitting]);
+
+  const closeSubmitReview = useCallback(() => {
+    if (submitting) return;
+    setSubmitReviewOpen(false);
+  }, [submitting]);
+
+  const confirmSubmitReview = useCallback(() => {
+    void submitReview();
+  }, [submitReview]);
+
+  const saveDraftFromSubmitReview = useCallback(() => {
+    if (!activeCase || !annotation || saveStatus === 'saving') return;
+    void persistDraft()
+      .then(() => {
+        const syncedOnline = hasReadmissionBackend() && navigator.onLine;
+        showToast(
+          hasReadmissionBackend()
+            ? syncedOnline
+              ? 'Draft saved.'
+              : 'Draft saved on this device. Will sync when online.'
+            : 'Draft saved locally.',
+          'success',
+        );
+        setSubmitReviewOpen(false);
+      })
+      .catch((e) => {
+        showToast('Failed to save draft.', 'error', [e instanceof Error ? e.message : 'Unknown error']);
+      });
+  }, [activeCase, annotation, persistDraft, saveStatus, showToast]);
 
   const exportJson = useCallback(() => {
     if (!annotation || !activeCase) return;
@@ -874,6 +937,7 @@ export function useReadmissionAnnotation({
       lastSavedAt,
       saveError,
       submitting,
+      submitReviewOpen: false,
       toast,
       dismissToast,
       groupById: new Map(),
@@ -899,6 +963,7 @@ export function useReadmissionAnnotation({
       removeHighlight,
       saveFactor,
       updateGroupNote,
+      updateCaseClinicalSummary,
       scrollToSpan,
       deleteFactorFromNote,
       openHighlightPopover,
@@ -906,7 +971,11 @@ export function useReadmissionAnnotation({
       spanPopover,
       wasEverSubmitted,
       saveDraft,
-      submitReview,
+      requestSubmitReview: () => {},
+      confirmSubmitReview: () => {},
+      closeSubmitReview: () => {},
+      saveDraftFromSubmitReview: () => {},
+      submitReview: () => {},
       exportJson,
       isDefaultFactorLabel,
     };
@@ -953,6 +1022,7 @@ export function useReadmissionAnnotation({
     lastSavedAt,
     saveError,
     submitting,
+    submitReviewOpen,
     toast,
     dismissToast,
     groupById,
@@ -978,6 +1048,7 @@ export function useReadmissionAnnotation({
     removeHighlight,
     saveFactor,
     updateGroupNote,
+    updateCaseClinicalSummary,
     scrollToSpan,
     deleteFactorFromNote,
     openHighlightPopover,
@@ -985,6 +1056,10 @@ export function useReadmissionAnnotation({
     spanPopover,
     wasEverSubmitted,
     saveDraft,
+    requestSubmitReview,
+    confirmSubmitReview,
+    closeSubmitReview,
+    saveDraftFromSubmitReview,
     submitReview,
     exportJson,
     isDefaultFactorLabel,

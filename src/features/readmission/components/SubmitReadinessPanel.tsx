@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Info } from 'lucide-react';
 
+import {
+  CASE_SETUP_CONFIDENCE_ERROR,
+  CASE_SETUP_DIAGNOSIS_ERROR,
+  CASE_SETUP_SYMPTOMS_ERROR,
+  humanizeCaseSetupError,
+} from '@/features/readmission/lib/caseClinicalSummary';
 import type { ValidationResult } from '@/features/readmission/lib/annotationValidation';
 
 type Props = {
@@ -30,6 +36,12 @@ function humanize(message: string): string {
   }
   if (message === 'At least one primary readmission factor is required.') {
     return 'No factor marked as Primary.';
+  }
+  if (message === CASE_SETUP_DIAGNOSIS_ERROR) {
+    return humanizeCaseSetupError(message);
+  }
+  if (message === CASE_SETUP_CONFIDENCE_ERROR) {
+    return humanizeCaseSetupError(message);
   }
   if (message === 'Annotation note version hash does not match the current case notes.') {
     return 'Notes have changed since you opened this case — reload.';
@@ -104,20 +116,26 @@ function tone(severity: Severity) {
 }
 
 export function SubmitReadinessPanel({ validation, submitted }: Props) {
-  const severity = deriveSeverity(validation, submitted);
-  const rawItems = severity === 'error' ? validation.errors : validation.warnings;
+  const displayErrors = validation.errors.filter(
+    (message) => message !== CASE_SETUP_SYMPTOMS_ERROR,
+  );
+  const displayValidation = { ...validation, errors: displayErrors };
+  const severity = deriveSeverity(displayValidation, submitted);
+  const rawItems = severity === 'error' ? displayErrors : validation.warnings;
   const items = rawItems.map(humanize);
   const [open, setOpen] = useState(false);
   const { border, text, bg, Icon } = tone(severity);
 
-  const groupLabel = severity === 'warning' ? 'warnings' : 'issues blocking submit';
+  const groupLabel = severity === 'warning' ? 'warnings' : 'tasks remaining for submisstion';
   const summary = submitted
     ? 'Submitted'
     : severity === 'ok'
       ? 'Ready to submit'
-      : items.length === 1
-        ? items[0]
-        : `${items.length} ${groupLabel} — ${items[0]}`;
+      : items.length === 0
+        ? 'Complete required fields before submitting.'
+        : items.length === 1
+          ? items[0]
+          : `${items.length} ${groupLabel} — ${items[0]}`;
 
   const hasItems = items.length > 0;
 

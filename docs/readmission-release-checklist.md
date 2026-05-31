@@ -44,10 +44,14 @@ Run on `/research` after `npm run build` and a hard refresh.
 Run once before clinician go-live:
 
 1. Apply `supabase/migrations/001_note_polish_columns.sql` and `002_note_enrichment_version.sql` if not already applied.
-2. Run `notebooks/setup_cohort.ipynb` (raw upsert + assignments).
-3. Configure `notebooks/.env` (Supabase service role only; no Ollama required).
-4. Optional: run `notebooks/inspect_note_headings.ipynb` to review heading frequencies and lexicon coverage.
-5. Run **pilot** in `notebooks/polish_notes.ipynb` on case `137`; confirm multiple sections (not one Preamble on long notes).
+2. Configure `notebooks/.env` (Supabase service role only; no Ollama required).
+3. Run `notebooks/setup_cohort.ipynb`:
+   - Optional **Phase 1 reset** (`RESET_DB=True`, `CONFIRM_RESET="DELETE ALL"`) to wipe annotations, assignments, cases, profiles, and Auth users.
+   - **Phase 2–3** with `REBUILD_INTERSECTION=True` once → writes `notebooks/artifacts/intersection_set.parquet` + `sampling_manifest.json`.
+   - **Phase 4–5** assigns stratified cases (shared intersection + unique per clinician) and upserts Supabase.
+   - To add a clinician later: run **Phase 6** in `setup_cohort.ipynb` (incremental add; does not reset existing assignments).
+4. Optional: run `notebooks/inspect_annotations.ipynb` to review exported annotations.
+5. Run **pilot** in `notebooks/polish_notes.ipynb` on one assigned case; confirm multiple sections (not one Preamble on long notes).
 6. Run **batch** with `DRY_RUN=false`; expect all assigned cases labeled with `sections-rules-v1` (`section_source: rules`; warnings OK).
 7. Optional: run **Export cohort sections parquet** cell in `polish_notes.ipynb` → `src/data/readmit_30d_sections.parquet`.
 8. Deploy frontend; smoke **Magic Beta** in single-note layout (TOC jump, highlights still work) and split view (Beta disabled).

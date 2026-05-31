@@ -1,10 +1,12 @@
 import { AnnotationToast } from '@/features/readmission/components/AnnotationToast';
 import { CaseReviewBar } from '@/features/readmission/components/CaseReviewBar';
 import { DualNoteWorkspace } from '@/features/readmission/components/DualNoteWorkspace';
-import { FactorWorkbenchPanel } from '@/features/readmission/components/FactorWorkbenchPanel';
 import { HighlightSpanPopover } from '@/features/readmission/components/HighlightSpanPopover';
+import { ReadmissionFactorSidebar } from '@/features/readmission/components/ReadmissionFactorSidebar';
 import { SubmitReadinessPanel } from '@/features/readmission/components/SubmitReadinessPanel';
+import { SubmitReviewDialog } from '@/features/readmission/components/SubmitReviewDialog';
 import { useReadmissionAnnotation } from '@/features/readmission/hooks/useReadmissionAnnotation';
+import { buildSubmissionReviewSummary } from '@/features/readmission/lib/buildSubmissionReviewSummary';
 import type { ReadmissionCase } from '@/features/readmission/types/readmissionAnnotation';
 
 type Props = {
@@ -43,6 +45,8 @@ export function ReadmissionTab({
   const cohortHashMismatch =
     activeCase.noteVersionHash !== ws.annotation.noteVersionHash;
 
+  const submitReviewSummary = buildSubmissionReviewSummary(ws.annotation);
+
   return (
     <div data-theme="light" className="flex h-[calc(100svh-96px)] min-h-[640px] flex-col gap-3 overflow-hidden">
       <CaseReviewBar
@@ -57,7 +61,7 @@ export function ReadmissionTab({
         submitting={ws.submitting}
         wasEverSubmitted={ws.wasEverSubmitted}
         onSaveDraft={ws.saveDraft}
-        onSubmit={() => void ws.submitReview()}
+        onSubmit={ws.requestSubmitReview}
         onExport={ws.exportJson}
       />
 
@@ -137,21 +141,10 @@ export function ReadmissionTab({
           className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border"
           style={{ borderColor: 'var(--color-border-strong)', background: 'var(--color-panel-solid)' }}
         >
-          <header
-            className="shrink-0 border-b px-3 py-2"
-            style={{ borderColor: 'var(--color-border)', background: 'var(--color-panel-alt)' }}
-          >
-            <h3 className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-              Readmission factors
-            </h3>
-            <p className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
-              {ws.annotation.evidenceGroups.length} factor
-              {ws.annotation.evidenceGroups.length !== 1 ? 's' : ''} · {ws.highlightCount} highlight
-              {ws.highlightCount !== 1 ? 's' : ''}
-            </p>
-          </header>
-          <FactorWorkbenchPanel
+          <ReadmissionFactorSidebar
             annotation={ws.annotation}
+            submitErrors={ws.submitValidation.errors}
+            highlightCount={ws.highlightCount}
             spansByGroupId={ws.spansByGroupId}
             factorById={ws.factorById}
             expandedGroupId={ws.expandedGroupId}
@@ -159,6 +152,7 @@ export function ReadmissionTab({
             groupCardRefs={ws.groupCardRefs}
             isDefaultFactorLabel={ws.isDefaultFactorLabel}
             getFactorFormDraft={ws.getFactorFormDraft}
+            onUpdateCaseClinicalSummary={ws.updateCaseClinicalSummary}
             onSelectGroup={ws.selectGroup}
             onToggleExpand={ws.toggleGroupExpand}
             onRenameGroup={ws.renameGroup}
@@ -179,6 +173,18 @@ export function ReadmissionTab({
       />
 
       <AnnotationToast toast={ws.toast} onDismiss={ws.dismissToast} />
+
+      <SubmitReviewDialog
+        open={ws.submitReviewOpen}
+        summary={submitReviewSummary}
+        canSubmit={ws.submitValidation.ok}
+        submitting={ws.submitting}
+        saving={ws.saveStatus === 'saving'}
+        wasEverSubmitted={ws.wasEverSubmitted}
+        onConfirm={() => void ws.confirmSubmitReview()}
+        onSaveDraft={ws.saveDraftFromSubmitReview}
+        onClose={ws.closeSubmitReview}
+      />
     </div>
   );
 }
